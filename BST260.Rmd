@@ -14,9 +14,9 @@ library(tidyverse)
 library(dplyr)
 ds_theme_set()
 
-data <- read.csv(file = file.choose()) #4999   20
-names(data)
-summary(data)
+game <- read.csv(file = file.choose()) #4999   20
+names(game)
+summary(game)
 ```
 
 1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
@@ -29,12 +29,81 @@ summary(data)
 
 
 ### EDA
-#1 ) missting value?
+#1) missting value?
 ```{r}
-missing(data)
+missing(game)
 ```
  
-#2) Relationship between geek_rating and avg_rating?
+#2)  Data cleaning?
+
+1. Do we need rows with avg_time = 0? (Do we trust the ave_rating from someone who do not play this game?) We have 82 rows with avg_time = 0
+```{r}
+	# avg_time
+	0 %in% game$avg_time  #T
+length(which(game$avg_time==0))  #82
+```
+
+2. What do min_players=0 and max_players=0 mean? Possible explanations: 
+min_players=0: any number of person can play/ not reported
+max_players=0: no upper limit for number of players/ not reported
+min_players>0 & max_players=0: upper limit for number of players/ miss-reported
+min_players=0 & max_players=0: fail to report
+For any of the given rows met above criteria, should we delete those rows or find meaningful values to replace 0s?
+```{r}
+# min_players + max_players
+0 %in% game$min_players  #T
+length(which(game$min_players==0))  #14
+0 %in% game$max_players  #T
+length(which(game$max_players==0))  #26
+length(which(game$min_players>0 & game$max_players==0))  #16
+length(which(game$min_players==0 & game$max_players==0))  #10
+```
+
+3. How to interpret min_time=0 and max_time=0? Similar to avg_time=0 problem. But we have more min/max=0 than avg=0. Possible miss-reporting data.
+```{r}
+	# min_time + max_time
+0 %in% game$min_time  #T
+length(which(game$min_time==0))  #87
+0 %in% game$max_time  #T
+length(which(game$max_time==0))  #121
+```
+
+4. There are 2 rows with year <0 and 1 row with year=2018. May find the origin of those games and replace those values <0. Year=2018 could mean year=2017 or =2008 (typo)
+```{r}
+# year
+range(game$year)  #-3000  2018
+which(game$year < 0)  #104 1036
+which(game$year > 2017) #3791
+```
+
+5. There are 3 rows with weight=0. May find the weight of those games and replace 0 values. 
+```{r}
+# weight
+range(game$weight)  #0.0000 4.9048
+length(which(game$weight==0))  #3
+```
+
+6. Normal/make sense columns
+```{r}
+## NORMAL
+# avg_rating
+range(game$avg_rating)  #5.73429 9.33167
+range(game$geek_rating)  #5.62627 8.48904
+
+# num_votes
+range(game$num_votes)  #47 68505
+
+# age
+range(game$age)  #0 42
+length(which(game$age==0))  #252
+
+# owned
+range(game$owned)  #12 96783
+```
+
+
+
+#3) Relationship between geek_rating and avg_rating?
 ```{r}
 data %>% ggplot(aes(geek_rating, avg_rating)) +
   geom_point(alpha = 0.8) +
@@ -43,7 +112,7 @@ data %>% ggplot(aes(geek_rating, avg_rating)) +
 
 Seems that the ave_rating is higher than geek_rating in general (geeks seem more critical)
 
-#3) Explore the distribution of our covariates in this dataset
+#4) Explore the distribution of our covariates in this dataset
 ```{r}
 data %>% ggplot(aes(avg_time))+
   geom_histogram(bins = 100) 
@@ -54,4 +123,3 @@ data %>% ggplot(aes(avg_time))+
 data %>% ggplot(aes(log(avg_time)))+
   geom_histogram() 
 ```
-
