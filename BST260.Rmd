@@ -78,7 +78,7 @@ split_into_multiple <- function(column, pattern = ", ", into_prefix){
 
 d <- game %>% 
   select(rank, category, avg_rating) %>%
-  bind_cols(split_into_multiple(data$category,',','category'))
+  bind_cols(split_into_multiple(game$category,',','category'))
 
 d1 <- d %>% 
   select(-category, -rank) %>%
@@ -90,6 +90,6 @@ d2 %>% ggplot(aes(val, y = average_rating))+
   geom_point(size=0.1)+
   theme(text = element_text(size=5),
         axis.text.x = element_text(angle = 90, hjust =0))
- 
+arrange(d2, desc(average_rating))
 ```
 
