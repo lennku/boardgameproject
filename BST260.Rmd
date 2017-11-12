@@ -1,5 +1,5 @@
 ----
-title: "260Project"
+title: "260Project_Chen"
 output: html_document
 ---
 
@@ -14,9 +14,9 @@ library(tidyverse)
 library(dplyr)
 ds_theme_set()
 
-data <- read.csv(file = file.choose()) #4999   20
-names(data)
-summary(data)
+game <- read.csv(file = file.choose()) #4999   20
+names(game)
+summary(game)
 ```
 
 1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
@@ -31,12 +31,12 @@ summary(data)
 ### EDA
 #1 ) missting value?
 ```{r}
-missing(data)
+missing(game)
 ```
  
 #2) Relationship between geek_rating and avg_rating?
 ```{r}
-data %>% ggplot(aes(geek_rating, avg_rating)) +
+game %>% ggplot(aes(geek_rating, avg_rating)) +
   geom_point(alpha = 0.8) +
    geom_smooth()
 ```
@@ -45,13 +45,51 @@ Seems that the ave_rating is higher than geek_rating in general (geeks seem more
 
 #3) Explore the distribution of our covariates in this dataset
 ```{r}
-data %>% ggplot(aes(avg_time))+
+game %>% ggplot(aes(avg_time))+
   geom_histogram(bins = 100) 
 ```
 
 
 ```{r}
-data %>% ggplot(aes(log(avg_time)))+
-  geom_histogram() 
+game %>% ggplot(aes(avg_time))+
+  geom_histogram()+
+  scale_x_continuous(trans = "log2") 
+```
+
+# Check the category
+```{r}
+library(purrr)
+#data$cat <-as.character(data$category)
+#data$cat <- str_split(cat, ',')
+#cateogry <- do.call(rbind,catsplit)
+
+split_into_multiple <- function(column, pattern = ", ", into_prefix){
+  cols <- str_split_fixed(column, pattern, n = Inf)
+  # Sub out the ""'s returned by filling the matrix to the right, with NAs which are useful
+  cols[which(cols == "")] <- NA
+  cols <- as.tibble(cols)
+  # name the 'cols' tibble as 'into_prefix_1', 'into_prefix_2', ..., 'into_prefix_m' 
+  # where m = # columns of 'cols'
+  m <- dim(cols)[2]
+
+  names(cols) <- paste(into_prefix, 1:m, sep = "_")
+  return(cols)
+}
+
+d <- game %>% 
+  select(rank, category, avg_rating) %>%
+  bind_cols(split_into_multiple(data$category,',','category'))
+
+d1 <- d %>% 
+  select(-category, -rank) %>%
+  gather(key, val, -avg_rating, na.rm = T)
+
+d2 <- d1 %>% group_by(val) %>% summarise(average_rating = mean (avg_rating)) 
+
+d2 %>% ggplot(aes(val, y = average_rating))+
+  geom_point(size=0.1)+
+  theme(text = element_text(size=5),
+        axis.text.x = element_text(angle = 90, hjust =0))
+ 
 ```
 
