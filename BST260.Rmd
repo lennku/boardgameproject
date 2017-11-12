@@ -1,0 +1,57 @@
+----
+title: "260Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dslabs)
+library(tidyverse)
+library(dplyr)
+ds_theme_set()
+
+data <- read.csv(file = file.choose()) #4999   20
+names(data)
+summary(data)
+```
+
+1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
+2.	Compare if model differs for avg rating vs geek rating
+3.	
+4.	Explore any interesting correlation between the covariates
+5.	Test if we can accurately predict the rating of board games based on our model (https://boardgamegeek.com/browse/boardgame)
+6.	Play the best/worst game ourselves to see if we agree :P (maybe)
+7.	Design our own game based on findings (maybe)
+
+
+### EDA
+#1 ) missting value?
+```{r}
+missing(data)
+```
+ 
+#2) Relationship between geek_rating and avg_rating?
+```{r}
+data %>% ggplot(aes(geek_rating, avg_rating)) +
+  geom_point(alpha = 0.8) +
+   geom_smooth()
+```
+
+Seems that the ave_rating is higher than geek_rating in general (geeks seem more critical)
+
+#3) Explore the distribution of our covariates in this dataset
+```{r}
+data %>% ggplot(aes(avg_time))+
+  geom_histogram(bins = 100) 
+```
+
+
+```{r}
+data %>% ggplot(aes(log(avg_time)))+
+  geom_histogram() 
+```
+
