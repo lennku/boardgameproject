@@ -14,8 +14,8 @@ library(tidyverse)
 library(dplyr)
 ds_theme_set()
 
-game <- read.csv(file = file.choose()) #4999   20
-names(game)
+game <- read.csv(file = file.choose()) #4999   20    
+names(game) 
 summary(game)
 ```
 
@@ -38,9 +38,10 @@ missing(game)
 
 1. Do we need rows with avg_time = 0? (Do we trust the ave_rating from someone who do not play this game?) We have 82 rows with avg_time = 0
 ```{r}
-	# avg_time
-	0 %in% game$avg_time  #T
+# avg_time
+0 %in% game$avg_time  #T 
 length(which(game$avg_time==0))  #82
+which(game$avg_time==0)
 ```
 
 2. What do min_players=0 and max_players=0 mean? Possible explanations: 
@@ -52,9 +53,34 @@ For any of the given rows met above criteria, should we delete those rows or fin
 ```{r}
 # min_players + max_players
 0 %in% game$min_players  #T
-length(which(game$min_players==0))  #14
+length(which(game$min_players==0))  #8
+which(game$min_players==0)  
+game$min_players[1616] <- 1 
+game$min_players[1962] <- 1 
+game$min_players[2273] <- 1 
+game$min_players[2408] <- 1 
+game$min_players[2693] <- 1 
+game$min_players[3332] <- 1 
+game$min_players[3850] <- 1 
+game$min_players[3902] <- 1 
+
 0 %in% game$max_players  #T
 length(which(game$max_players==0))  #26
+which(game$max_players==0) 
+game$max_players[1616] <- NA
+game$max_players[1962] <- NA
+game$max_players[2273] <- NA
+game$max_players[2408] <- NA
+game$max_players[2687] <- 2
+game$max_players[2739] <- 4
+game$max_players[2818] <- 2
+game$max_players[3332] <- 1
+game$max_players[3356] <- 4
+game$max_players[3570] <- 2
+game$max_players[3724] <- 2
+game$max_players[3875] <- 2
+game$max_players[3902] <- NA
+
 length(which(game$min_players>0 & game$max_players==0))  #16
 length(which(game$min_players==0 & game$max_players==0))  #10
 ```
@@ -64,6 +90,7 @@ length(which(game$min_players==0 & game$max_players==0))  #10
 	# min_time + max_time
 0 %in% game$min_time  #T
 length(which(game$min_time==0))  #87
+#which(game$min_time==0)
 0 %in% game$max_time  #T
 length(which(game$max_time==0))  #121
 ```
@@ -73,6 +100,9 @@ length(which(game$max_time==0))  #121
 # year
 range(game$year)  #-3000  2018
 which(game$year < 0)  #104 1036
+game$year[104] <-
+game$year[1036] <-
+
 which(game$year > 2017) #3791
 ```
 
@@ -80,8 +110,24 @@ which(game$year > 2017) #3791
 ```{r}
 # weight
 range(game$weight)  #0.0000 4.9048
-length(which(game$weight==0))  #3
+length(which(game$weight==0))  #1
+which(game$weight==0)  
+game$weight[1477] <- NA
+
 ```
+
+```{r}
+# new dataset
+length(which(game$min_players==0))  
+length(which(game$max_players==0))  
+length(which(game$weight==0)) 
+
+write.table(game, file = "game_partclean_Shimin.csv", sep = ",", row.names = FALSE,
+            col.names = TRUE, quote = FALSE)
+
+```
+
+
 
 6. Normal/make sense columns
 ```{r}
