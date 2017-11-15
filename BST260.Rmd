@@ -90,6 +90,48 @@ d2 %>% ggplot(aes(val, y = average_rating))+
   geom_point(size=0.1)+
   theme(text = element_text(size=5),
         axis.text.x = element_text(angle = 90, hjust =0))
-arrange(d2, desc(d2$average_rating))
+ 
+```
+
+
+```{r}
+mechanic <- game %>% 
+  select(rank, mechanic, avg_rating) %>%
+  bind_cols(split_into_multiple(game$mechanic,',','mechanic'))
+
+mechanic1 <- mechanic %>% 
+  select(-mechanic, -rank) %>%
+  gather(key, val, -avg_rating, na.rm = T)
+
+mechanic2 <- mechanic1 %>% group_by(val) %>% summarise(average_rating = mean (avg_rating)) 
+
+mechanic2 %>% ggplot(aes(val, y = average_rating))+
+  geom_point(size=0.1)+
+  theme(text = element_text(size=5),
+        axis.text.x = element_text(angle = 90, hjust =0))
+```
+```{r}
+arrange(mechanic2, desc(mechanic2$average_rating))
+```
+
+```{r}
+designer <- game %>% 
+  select(rank, designer, avg_rating) %>%
+  bind_cols(split_into_multiple(game$designer,',','designer'))
+
+designer1 <- designer %>% 
+  select(-designer, -rank) %>%
+  gather(key, val, -avg_rating, na.rm = T)
+
+designer2 <- designer1 %>% group_by(val) %>% summarise(average_rating = mean (avg_rating)) 
+
+designer2 %>% ggplot(aes(val, y = average_rating))+
+  geom_point(size=0.1)+
+  theme(text = element_text(size=5),
+        axis.text.x = element_text(angle = 90, hjust =0))
+```
+
+```{r}
+arrange(designer2, desc(designer2$average_rating))
 ```
 
