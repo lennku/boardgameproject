@@ -14,7 +14,9 @@ library(tidyverse)
 library(dplyr)
 ds_theme_set()
 
-game <- read.csv(file = file.choose()) #4999   20
+#game <- read.csv(file = file.choose()) #4999   20
+
+game <- read.csv('bgg_db_2017_04.csv', header = TRUE)
 names(game)
 summary(game)
 ```
