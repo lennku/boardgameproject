@@ -1,0 +1,69 @@
+---
+title: "Clean data code"
+output: html_document
+---
+
+```{r}
+#game <- read.csv(file = file.choose())
+
+# min_players
+game$min_players[1616] <- 1 
+game$min_players[1962] <- 1 
+game$min_players[2273] <- 1 
+game$min_players[2408] <- 1 
+game$min_players[2693] <- 1 
+game$min_players[3332] <- 1 
+game$min_players[3850] <- 1 
+game$min_players[3902] <- 1 
+game$min_players[4145] <- 1 
+game$min_players[4247] <- 1 
+game$min_players[4311] <- 1 
+game$min_players[4442] <- 1 
+game$min_players[4480] <- 1 
+game$min_players[4815] <- 1 
+
+# max_players
+game$max_players[1616] <- NA
+game$max_players[1962] <- NA
+game$max_players[2273] <- NA
+game$max_players[2408] <- NA
+game$max_players[2687] <- 2
+game$max_players[2739] <- 4
+game$max_players[2818] <- 2
+game$max_players[3332] <- 1
+game$max_players[3356] <- 4
+game$max_players[3570] <- 2
+game$max_players[3724] <- 2
+game$max_players[3875] <- 2
+game$max_players[3902] <- NA
+game$max_players[4016] <- 2
+game$max_players[4145] <- NA
+game$max_players[4241] <- 2
+game$max_players[4354] <- 2
+game$max_players[4437] <- 2
+game$max_players[4442] <- NA
+game$max_players[4480] <- NA
+game$max_players[4504] <- 2
+game$max_players[4528] <- 2
+game$max_players[4540] <- 2
+game$max_players[4795] <- 2
+game$max_players[4815] <- NA
+game$max_players[4988] <- 2
+
+# weight
+game$weight[1477] <- NA
+game$weight[4381] <- NA
+game$weight[4521] <- NA
+
+# final check
+length(which(game$min_players==0))  
+length(which(game$max_players==0))  
+length(which(game$weight==0)) 
+
+# write txt and import txt
+write.table(game, file = "game_partclean_Shimin.txt", sep = "|", row.names = FALSE,
+            col.names = TRUE, quote = FALSE)
+
+newgame <- read.csv("game_partclean_Shimin.txt", header = T, sep = "|") 
+```
+
