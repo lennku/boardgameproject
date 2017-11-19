@@ -1,0 +1,193 @@
+----
+title: "260Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(dslabs)
+ds_theme_set()
+
+data <- read.csv(file = file.choose()) #4999   20
+names(data)
+```
+
+1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
+2.	Compare if model differs for avg rating vs geek rating
+3.	Explore the distribution of our covariates in this dataset
+4.	Explore any interesting correlation between the covariates
+5.	Test if we can accurately predict the rating of board games based on our model (https://boardgamegeek.com/browse/boardgame)
+6.	Play the best/worst game ourselves to see if we agree :P (maybe)
+7.	Design our own game based on findings (maybe)
+
+To do:
+1. Clean up dataset (for mechanics, designer, category) and hot-code (missing values or outliers) - Shimin, Yanying
+      avg_time, other outliers - Yanying
+      Min_player, max_player, year, weight - Shimin
+2. EDA to see which board games are most highly rated and which categories / combination of mechanics have the           highest rating & Descriptive analysis of covariates (plots) - Chen, Melissa
+3. Predictive model (predict avg rating) - Melissa, Chen, Shimin
+4. Test set, web scraping (price, rating, rank) to see if we can obtain a test set of new games outside of given         dataset - Melissa, Yanying, Chen
+5. Boardgame recommender based on past games played or features wanted (Euclidean distance) - Shimin, Yanying
+6. Website design (use templates) - All
+7. Screencast - All
+
+## Data cleaning
+1. split category, designer, mechanic
+2. Fill in missing data for avg_time, max_time, min_time
+3. Extract price data from boardgamegeeks.com
+4. check extremes of data: max_players, min_players, avg_time, min_time, max_time, year, age, weight
+```{r}
+library(purrr)
+library(stringr)
+# Functions
+split_into_multiple <- function(column, pattern = ", ", into_prefix){
+  cols <- str_split_fixed(column, pattern, n = Inf)
+  cols[which(cols == "")] <- NA
+  cols <- as.tibble(cols)
+  m <- dim(cols)[2]
+  names(cols) <- paste(into_prefix, 1:m, sep = "_")
+  return(cols)
+}
+
+#Splitting 
+data <- data %>% bind_cols(split_into_multiple(data$category,',','category')) %>%
+  bind_cols(split_into_multiple(data$mechanic,',','mechanic'))
+
+#Cleaning
+data <- data %>% select(-category, -mechanic, -designer, -image_url)
+
+#Tidying
+tidydata <- data %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
+  gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
+
+tidydata$mechanics <- trimws(tidydata$mechanics)
+tidydata$categoires <- trimws(tidydata$categories)
+
+```
+
+## EDA
+1. Explore distribution of single covariates
+2. Explore the relationship between covariates
+```{r}
+## Distributions
+
+#Continuous variables
+library(gridExtra)
+
+p1 <- data %>% ggplot(aes(min_players)) +
+  geom_histogram() +
+  xlim(0,8)
+# seems like more of a categorical variable
+p2 <- data %>% ggplot(aes(max_players)) +
+  geom_histogram() + 
+  scale_x_log10()
+# log transfom fits better
+p3 <- data %>% ggplot(aes(min_time)) +
+  geom_histogram() +
+  scale_x_log10()
+# log transform fits better
+p4 <- data %>% ggplot(aes(max_time)) +
+  geom_histogram() +
+  scale_x_log10()
+# log transform fits better
+p5 <- data %>% ggplot(aes(year)) +
+  geom_histogram() +
+  xlim(1900,2019)
+# Exponential
+p6 <- data %>% ggplot(aes(avg_rating)) +
+  geom_histogram()
+p7 <- data %>% ggplot(aes(geek_rating)) +
+  geom_histogram()
+# Exponential
+p8 <- data %>% ggplot(aes(num_votes)) +
+  geom_histogram() +
+  scale_x_log10()
+# log transform fits better
+p9 <- data %>% ggplot(aes(age)) +
+  geom_histogram()
+p10 <- data %>% ggplot(aes(owned)) +
+  geom_histogram() +
+  scale_x_log10()
+# log transform fits beter
+p11 <- data %>% ggplot(aes(weight)) +
+  geom_histogram()
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, ncol = 3)
+
+#Categorical variables
+length(unique(data$mechanic_1)) # 51 
+length(unique(data$category_1)) # 82
+length(unique(data$designer_1)) # 1990, too many categories for designers
+
+unique(tidydata$mechanics)
+## Correlations
+
+#Mechanics vs ratings
+tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
+  geom_point(aes(avggeek, reorder(mechanics, avgrank)), size = 0.1, color = "blue") +
+  geom_point(aes(avgrating, mechanics), size = 0.1, color = "red") + 
+  theme(axis.text=element_text(size=4)) +
+  ylab("Rank") +
+  xlab("Rating") +
+  ggtitle("Ratings by Mechanics") #can't figure out how to add a legend or how to sort by descending **
+
+#Categories vs ratings
+tidydata %>% group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
+  geom_point(aes(avggeek, reorder(categories, avgrank)), size = 0.1, color = "blue") +
+  geom_point(aes(avgrating, categories), size = 0.1, color = "red") + 
+  theme(axis.text=element_text(size=4)) +
+  ylab("Rank") +
+  xlab("Rating") +
+  ggtitle("Ratings by Categories")
+
+#Average time vs ratings
+plot(geek_rating ~ I((log(min_time) + log(max_time))/2), data = data)
+cor(data$geek_rating, data$max_time)
+
+#Number of players vs ratings
+plot(geek_rating ~ I((log(min_players) + log(max_players))/2), data = data)
+cor(data$geek_rating, data$min_players)
+cor(data$geek_rating, data$max_players)
+
+#Popularity vs ratings (ownership and number of votes)
+plot(geek_rating ~ I(log(num_votes)) + I(log(owned)), data = data)
+cor(data$geek_rating, data$num_votes)
+cor(data$geek_rating, data$owned)
+
+#Age vs ratings
+plot(geek_rating ~ age, data = data)
+cor(data$geek_rating, data$age)
+
+#Weight vs ratings
+plot(geek_rating ~ weight, data = data)
+cor(data$geek_rating, data$weight)
+  
+```
+
+## Predictive model:
+lm(formula = geek_rating ~ num_votes + categories + age + mechanics + 
+    owned + max_time + max_players, data = tidydata)
+Adjusted R^2: 0.48
+```{r}
+#Most reliable covariates and make the most sense to test are: age, owned, num_votes, time (avg, min, max), players (min, max)
+#outcome variable would be either avg rating or geek rating
+
+mod1 <- step(lm(geek_rating ~ 1, data = tidydata), ~ owned + num_votes + mechanics + categories + age + max_time + max_players, direction = "both")
+summary(mod1)
+```
+
+
+## Generation of test set via webscrapping
+```{r}
+
+```
+
+## Boardgame recommender
+```{r}
+
+```
+
