@@ -1,0 +1,65 @@
+----
+title: "260Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dslabs)
+library(tidyverse)
+library(dplyr)
+ds_theme_set()
+
+data <- read.csv(file = file.choose()) #4999   20
+names(data)
+summary(data)
+```
+
+1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
+2.	Compare if model differs for avg rating vs geek rating
+3.	Explore the distribution of our covariates in this dataset
+4.	Explore any interesting correlation between the covariates
+5.	Test if we can accurately predict the rating of board games based on our model (https://boardgamegeek.com/browse/boardgame)
+6.	Play the best/worst game ourselves to see if we agree :P (maybe)
+7.	Design our own game based on findings (maybe)
+
+To do:
+1. Clean up dataset (for mechanics, designer, category) and hot-code (missing values or outliers) - Shimin, Yanying
+      avg_time, other outliers - Yanying
+      Min_player, max_player, year, weight - Shimin
+2. EDA to see which board games are most highly rated and which categories / combination of mechanics have the           highest rating & Descriptive analysis of covariates (plots) - Chen, Melissa
+3. Predictive model (predict avg rating) - Melissa, Chen, Shimin
+4. Test set, web scraping (price, rating, rank) to see if we can obtain a test set of new games outside of given         dataset - Melissa, Yanying, Chen
+5. Boardgame recommender based on past games played or features wanted (Euclidean distance) - Shimin, Yanying
+6. Website design (use templates) - All
+7. Screencast - All
+
+## Data cleaning
+```{r}
+
+```
+
+## EDA
+```{r}
+
+```
+
+## Predictive model
+```{r}
+
+```
+
+## Generation of test set via webscrapping
+```{r}
+
+```
+
+## Boardgame recommender
+```{r}
+
+```
+
