@@ -33,7 +33,7 @@ summary(game)
 ### EDA
 #1 ) missting value?
 ```{r}
-missing(game)
+missing(game) #none
 ```
  
 #2) Relationship between geek_rating and avg_rating?
@@ -58,13 +58,15 @@ game %>% ggplot(aes(avg_time))+
   scale_x_continuous(trans = "log2") 
 ```
 
-# Check the category
+# Check the category variable - the avg_rating distribution across the categories
+# list the board games that are the most highly rated
 ```{r}
 library(purrr)
 #data$cat <-as.character(data$category)
 #data$cat <- str_split(cat, ',')
 #cateogry <- do.call(rbind,catsplit)
 
+#split funtion
 split_into_multiple <- function(column, pattern = ", ", into_prefix){
   cols <- str_split_fixed(column, pattern, n = Inf)
   # Sub out the ""'s returned by filling the matrix to the right, with NAs which are useful
@@ -78,6 +80,8 @@ split_into_multiple <- function(column, pattern = ", ", into_prefix){
   return(cols)
 }
 
+# Check the category variable - the avg_rating distribution across the categories
+# list the board games that are the most highly rated
 d <- game %>% 
   select(rank, category, avg_rating) %>%
   bind_cols(split_into_multiple(game$category,',','category'))
@@ -97,6 +101,8 @@ d2 %>% ggplot(aes(val, y = average_rating))+
 
 
 ```{r}
+# Check the mechanic variable - the avg_rating distribution across the mechanic cat
+# list the board games that are the most highly rated
 mechanic <- game %>% 
   select(rank, mechanic, avg_rating) %>%
   bind_cols(split_into_multiple(game$mechanic,',','mechanic'))
@@ -117,6 +123,8 @@ arrange(mechanic2, desc(mechanic2$average_rating))
 ```
 
 ```{r}
+# Check the designer variable - the avg_rating distribution across the designer variable (too many, overlapped plots not informative)
+# list the board games that are the most highly rated
 designer <- game %>% 
   select(rank, designer, avg_rating) %>%
   bind_cols(split_into_multiple(game$designer,',','designer'))
@@ -135,5 +143,78 @@ designer2 %>% ggplot(aes(val, y = average_rating))+
 
 ```{r}
 arrange(designer2, desc(designer2$average_rating))
+```
+
+# descriptive analysis of covariates (plots)
+```{r}
+# the distribution of avg_rating across years
+game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(mean_rating = mean(avg_rating)) %>%
+  ggplot(aes(year, mean_rating))+
+  ggtitle('the distribution of avg_rating across years')+
+  geom_point()
+  
+```
+
+```{r}
+# the distribution of geek_rating across years
+game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(geek_mean = mean(geek_rating)) %>%
+  ggplot(aes(year,geek_mean))+
+  ggtitle('the distribution of geek_mean across years')+
+  geom_point()
+```
+
+
+
+```{r}
+# the distribution of num_votes across years
+game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(sum = sum(num_votes)) %>%
+  ggplot(aes(year, sum))+
+  geom_point()+
+  ggtitle('the distribution of num_votes across years')
+```
+
+```{r}
+# the distribution of owned across years
+game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(sum = sum( owned)) %>%
+  ggplot(aes(year, sum))+
+  geom_point()+
+  ggtitle('the distribution of owned across years')
+```
+
+```{r}
+# the distribution of weights across years
+game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(m = mean(weight)) %>%
+  ggplot(aes(year, m))+
+  geom_point()+
+  ggtitle('the distribution of mean weight of board games across years')
+```
+
+```{r}
+# the distribution of ranks across years
+game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(m = mean(rank)) %>%
+  ggplot(aes(year, m))+
+  geom_point()+
+  ggtitle('the distribution of mean rank of board games across years')
+```
+
+```{r}
+rank <- game %>% group_by(year) %>%
+  filter(year > 0) %>%
+  summarise(m = mean(rank))
+
+top_n(rank,10, wt = 2)
+arrange(rank, desc(rank$mean_rank))
 ```
 
