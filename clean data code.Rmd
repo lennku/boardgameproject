@@ -86,6 +86,12 @@ game$multi_player = 0
 game$multi_player[game$min_players > 1 & game$max_players <= 4] = 1
 game$party_player = 0
 game$party_player[game$max_players > 4] = 1
+# recode min_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$min_time, na.rm = T) 
+game$cate_mintime = 0
+game$cate_mintime[game$min_time >= 30 & game$min_time <= 90] = 1
+game$cate_mintime[game$min_time > 90] = 2
 # recode avg_time
 # 0 = short,  1 = medium, 2 = long
 quantile(game$avg_time, na.rm = T)
