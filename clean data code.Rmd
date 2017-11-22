@@ -61,9 +61,49 @@ length(which(game$max_players==0))
 length(which(game$weight==0)) 
 
 # write txt and import txt
-write.table(game, file = "game_partclean_Shimin.txt", sep = "|", row.names = FALSE,
-            col.names = TRUE, quote = FALSE)
+#write.table(game, file = "game_partclean_Shimin.txt", sep = "|", row.names = FALSE,
+#            col.names = TRUE, quote = FALSE)
 
-newgame <- read.csv("game_partclean_Shimin.txt", header = T, sep = "|") 
+#newgame <- read.csv("game_partclean_Shimin.txt", header = T, sep = "|") 
 ```
+
+11/21
+Recode players as 3 new categorical variables taking values 0, 1.  (Shimin)
+Single_player =1: min_players =1 
+Multi_player =1: min_players >1 & min_players <= 4 (I think this will work - MZ)
+Party_player =1: max_players >4 
+Recode min_time (short,  medium, long) to be categorical (use interquartile range) (Shimin)
+Recode weight into categorical variable: easy, medium, hard (use interquartile range) (Shimin)
+
+```{r}
+# Recode variables
+library(dplyr)
+game <- read.csv("https://raw.githubusercontent.com/lennku/boardgameproject/Yanying/bgg_clean_dat.csv", sep = "")
+# recode players
+game$single_player = 0
+game$single_player[game$min_players == 1] = 1
+game$multi_player = 0
+game$multi_player[game$min_players > 1 & game$max_players <= 4] = 1
+game$party_player = 0
+game$party_player[game$max_players > 4] = 1
+# recode avg_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$avg_time, na.rm = T)
+game$cate_avgtime = 0
+game$cate_avgtime[game$avg_time >= 30 & game$avg_time <= 120] = 1
+game$cate_avgtime[game$avg_time > 120] = 2
+# recode weight
+# 0 = easy, 1 = medium, 2 = hard
+quantile(game$weight, na.rm = T)
+game$cate_weight = 0
+game$cate_weight[game$weight >= 1.73885 & game$weight <= 2.8889] = 1
+game$cate_weight[game$weight > 2.8889] = 2
+# write csv and import csv
+write.table(game, file = "game_recode.txt", sep = "|", row.names = FALSE,
+            col.names = TRUE, quote = FALSE)
+n <- read.csv("game_recode.txt", header = T, sep = "|") 
+```
+
+
+
 
