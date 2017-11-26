@@ -1,0 +1,255 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+----
+title: "260Project_Chen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dslabs)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(readr)
+ds_theme_set()
+
+#game <- read.csv(file = file.choose()) #4999   20
+#iqgame <- read.csv('bgg_db_2017_04.csv', header = TRUE)
+
+# clean and recoded data
+game <- read.csv("game_recode.txt", header = T, sep = "|") 
+names(game) #  4999   26
+dim(game)
+```
+
+Modeling: (due by Nov 26)
+
+1）Mechanic and category plot modification - Chen (done)
+2）Table -top 10 rated for each age group ( 3 in total) - Chen
+3）Table -top 10 rated for each player group ( 3 groups in total) - Chen
+4) Plot min, mean, max players and time over year (Chen)
+5）Try knn (Chen), svm (Shimin, Chen)
+6）Cross validation to choose parameters
+
+# EDA
+### 1 ) missting value?
+```{r}
+missing(game) #none
+```
+ 
+###1）Mechanic and category plot modification
+
+```{r}
+library(purrr)
+library(stringr)
+# Functions
+split_into_multiple <- function(column, pattern = ", ", into_prefix){
+  cols <- str_split_fixed(column, pattern, n = Inf)
+  cols[which(cols == "")] <- NA
+  cols <- as.tibble(cols)
+  m <- dim(cols)[2]
+  names(cols) <- paste(into_prefix, 1:m, sep = "_")
+  return(cols)
+}
+
+#Splitting 
+game <- game %>% bind_cols(split_into_multiple(game$category,',','category')) %>%
+  bind_cols(split_into_multiple(game$mechanic,',','mechanic'))
+
+#Cleaning
+game <- game %>% select(-category, -mechanic, -designer, -image_url)
+
+#Tidying
+tidydata <- game %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
+  gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
+
+tidydata$mechanics <- trimws(tidydata$mechanics)
+tidydata$categoires <- trimws(tidydata$categories)
+
+
+#Mechanics vs ratings
+tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% 
+  ggplot() +
+  geom_point(aes(avggeek, reorder(mechanics, avgrank), color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(avgrating, mechanics, color = 'avg_rating'), size = 0.5) +
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
+  theme(axis.text=element_text(size=4)) +
+  ylab("Rank") +
+  xlab("Rating") +
+  ggtitle("Ratings by Mechanics") 
+
+#Categories vs ratings
+tidydata %>% group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
+  geom_point(aes(avggeek, reorder(categories, avgrank), color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(avgrating, categories, color = 'avg_rating'), size = 0.5) + 
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
+  theme(axis.text=element_text(size=4)) +
+  ylab("Rank") +
+  xlab("Rating") +
+  ggtitle("Ratings by Categories") 
+ 
+```
+
+###2）Table -top 10 rated for each age group (3 in total) - Chen
+
+* Distribution of age
+```{r}
+game %>% ggplot(aes(age)) +
+  geom_histogram()
+```
+
+* generate 3 age groups based on interquartile
+
+```{r}
+Q1 <- quantile(game$age, 0.25) 
+Q3 <- quantile(game$age, 0.75) 
+game <- game %>% mutate(agecat = ifelse (age %in% range(0,Q1), 1, ifelse(age %in% range(Q1, Q3), 2, 3)))
+```
+
+* top 10 rated (avg_rating) for each age group
+
+```{r}
+# agecat == 1 when age %in% range(0,Q1)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 2 when age %in% range(Q1,Q3)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 2) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 3 when age %in% range(Q3,)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 3) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+```
+
+*  top 10 rated (avg_geek) each age group
+
+```{r}
+# agecat == 1 when age %in% range(0,Q1)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 2 when age %in% range(Q1,Q3)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 2) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 3 when age %in% range(Q3,)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 3) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+```
+
+
+
+#3）Table -top 10 rated for each player group ( 3 groups in total) - Chen
+
+```{r}
+### top 10 rated (avg_rating) for each player group
+
+#single_player
+game %>% 
+  select(avg_rating, geek_rating, rank, single_player, game_id, names) %>%
+  filter(single_player == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+#multi_player
+game %>% 
+  select(avg_rating, geek_rating, rank, multi_player, game_id, names) %>%
+  filter(multi_player == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+#party_player
+game %>% 
+  select(avg_rating, geek_rating, rank, party_player, game_id, names) %>%
+  filter(party_player == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+```
+
+*  top 10 rated (avg_geek) each player group
+
+```{r}
+#single_player
+game %>% 
+  select(avg_rating, geek_rating, rank, single_player, game_id, names) %>%
+  filter(single_player == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+#multi_player
+game %>% 
+  select(avg_rating, geek_rating, rank, multi_player, game_id, names) %>%
+  filter(multi_player == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+#party_player
+game %>% 
+  select(avg_rating, geek_rating, rank, party_player, game_id, names) %>%
+  filter(party_player == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+```
+
+
+### 4) Plot min, mean, max players and time over year (Chen)
+
+```{r}
+#plot min, max, players over years
+game %>% filter(year >=1980 & rank != which.max(game$max_players)) %>% #drop the 999 maximum point
+  select(min_players, max_players, year) %>%
+  group_by(year) %>%
+  ggplot() + 
+  geom_point(aes(year,min_players, color= 'min_time')) +
+  geom_point(aes(year, max_players, color= 'avg_time')) +
+  scale_colour_manual(name="time", values=c(min_time='blue', avg_time="red", max_time = 'yellow')) +
+  theme(axis.text=element_text(size=3)) +
+  ylab("time") +
+  xlab("year") +
+  ggtitle("Min vs max players over year")
+
+# plot min, max, mean, time over years
+game %>% filter(year >=1980) %>%
+  select(min_time, avg_time, max_time, year) %>%
+  group_by(year) %>%
+  ggplot() + 
+  geom_point(aes(year, min_time, color= 'min_time')) +
+  geom_point(aes(year, avg_time, color= 'avg_time')) +
+  geom_point(aes(year, max_time, color= 'max_time')) +
+  scale_colour_manual(name="time", values=c(min_time='blue', avg_time="red", max_time = 'yellow')) +
+  theme(axis.text=element_text(size=3)) +
+  ylab("time") +
+  xlab("year") +
+  ggtitle("Min, avg, max time over years")
+
+```
+
+
+
