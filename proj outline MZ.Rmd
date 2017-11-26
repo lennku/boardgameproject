@@ -11,35 +11,137 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dslabs)
 ds_theme_set()
+game <- read.csv("C:/Users/Lem/Dropbox (CBQG)/BST260/boardgameproject/boardgamegame.csv")
 
-data <- read.csv(file = file.choose()) #4999   20
-names(data)
+# min_players
+game$min_players[1616] <- 1 
+game$min_players[1962] <- 1 
+game$min_players[2273] <- 1 
+game$min_players[2408] <- 1 
+game$min_players[2693] <- 1 
+game$min_players[3332] <- 1 
+game$min_players[3850] <- 1 
+game$min_players[3902] <- 1 
+game$min_players[4145] <- 1 
+game$min_players[4247] <- 1 
+game$min_players[4311] <- 1 
+game$min_players[4442] <- 1 
+game$min_players[4480] <- 1 
+game$min_players[4815] <- 1 
+
+# max_players
+game$max_players[1616] <- NA
+game$max_players[1962] <- NA
+game$max_players[2273] <- NA
+game$max_players[2408] <- NA
+game$max_players[2687] <- 2
+game$max_players[2739] <- 4
+game$max_players[2818] <- 2
+game$max_players[3332] <- 1
+game$max_players[3356] <- 4
+game$max_players[3570] <- 2
+game$max_players[3724] <- 2
+game$max_players[3875] <- 2
+game$max_players[3902] <- NA
+game$max_players[4016] <- 2
+game$max_players[4145] <- NA
+game$max_players[4241] <- 2
+game$max_players[4354] <- 2
+game$max_players[4437] <- 2
+game$max_players[4442] <- NA
+game$max_players[4480] <- NA
+game$max_players[4504] <- 2
+game$max_players[4528] <- 2
+game$max_players[4540] <- 2
+game$max_players[4795] <- 2
+game$max_players[4815] <- NA
+game$max_players[4988] <- 2
+
+# weight
+game$weight[1477] <- NA
+game$weight[4381] <- NA
+game$weight[4521] <- NA
+
+# final check
+length(which(game$min_players==0))  
+length(which(game$max_players==0))  
+length(which(game$weight==0)) 
+
+# write txt and import txt
+#write.table(game, file = "game_partclean_Shimin.txt", sep = "|", row.names = FALSE,
+#            col.names = TRUE, quote = FALSE)
+
+#newgame <- read.csv("game_partclean_Shimin.txt", header = T, sep = "|") 
 ```
+
+11/21
+Recode players as 3 new categorical variables taking values 0, 1.  (Shimin)
+Single_player =1: min_players =1 
+Multi_player =1: min_players >1 & min_players <= 4 (I think this will work - MZ)
+Party_player =1: max_players >4 
+Recode min_time (short,  medium, long) to be categorical (use interquartile range) (Shimin)
+Recode weight into categorical variable: easy, medium, hard (use interquartile range) (Shimin)
+
+```{r}
+# Recode variables
+library(dplyr)
+game <- read.csv("https://raw.githubusercontent.com/lennku/boardgameproject/Yanying/bgg_clean_dat.csv", sep = "")
+# recode players
+game$single_player = 0
+game$single_player[game$min_players == 1] = 1
+game$multi_player = 0
+game$multi_player[game$min_players > 1 & game$max_players <= 4] = 1
+game$party_player = 0
+game$party_player[game$max_players > 4] = 1
+# recode min_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$min_time, na.rm = T) 
+game$cate_mintime = 0
+game$cate_mintime[game$min_time >= 30 & game$min_time <= 90] = 1
+game$cate_mintime[game$min_time > 90] = 2
+# recode avg_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$avg_time, na.rm = T)
+game$cate_avgtime = 0
+game$cate_avgtime[game$avg_time >= 30 & game$avg_time <= 120] = 1
+game$cate_avgtime[game$avg_time > 120] = 2
+# recode weight
+# 0 = easy, 1 = medium, 2 = hard
+quantile(game$weight, na.rm = T)
+game$cate_weight = 0
+game$cate_weight[game$weight >= 1.73885 & game$weight <= 2.8889] = 1
+game$cate_weight[game$weight > 2.8889] = 2
+# write csv and import csv
+write.table(game, file = "game_recode.txt", sep = "|", row.names = FALSE,
+            col.names = TRUE, quote = FALSE)
+n <- read.csv("game_recode.txt", header = T, sep = "|") 
+```
+
 
 1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
 2.	Compare if model differs for avg rating vs geek rating
-3.	Explore the distribution of our covariates in this dataset
+3.	Explore the distribution of our covariates in this gameset
 4.	Explore any interesting correlation between the covariates
 5.	Test if we can accurately predict the rating of board games based on our model (https://boardgamegeek.com/browse/boardgame)
 6.	Play the best/worst game ourselves to see if we agree :P (maybe)
 7.	Design our own game based on findings (maybe)
 
 To do:
-1. Clean up dataset (for mechanics, designer, category) and hot-code (missing values or outliers) - Shimin, Yanying
+1. Clean up gameset (for mechanics, designer, category) and hot-code (missing values or outliers) - Shimin, Yanying
       avg_time, other outliers - Yanying
       Min_player, max_player, year, weight - Shimin
 2. EDA to see which board games are most highly rated and which categories / combination of mechanics have the           highest rating & Descriptive analysis of covariates (plots) - Chen, Melissa
 3. Predictive model (predict avg rating) - Melissa, Chen, Shimin
-4. Test set, web scraping (price, rating, rank) to see if we can obtain a test set of new games outside of given         dataset - Melissa, Yanying, Chen
+4. Test set, web scraping (price, rating, rank) to see if we can obtain a test set of new games outside of given         gameset - Melissa, Yanying, Chen
 5. Boardgame recommender based on past games played or features wanted (Euclidean distance) - Shimin, Yanying
 6. Website design (use templates) - All
 7. Screencast - All
 
-## Data cleaning
+## game cleaning
 1. split category, designer, mechanic
-2. Fill in missing data for avg_time, max_time, min_time
-3. Extract price data from boardgamegeeks.com
-4. check extremes of data: max_players, min_players, avg_time, min_time, max_time, year, age, weight
+2. Fill in missing game for avg_time, max_time, min_time
+3. Extract price game from boardgamegeeks.com
+4. check extremes of game: max_players, min_players, avg_time, min_time, max_time, year, age, weight
 ```{r}
 library(purrr)
 library(stringr)
@@ -54,18 +156,18 @@ split_into_multiple <- function(column, pattern = ", ", into_prefix){
 }
 
 #Splitting 
-data <- data %>% bind_cols(split_into_multiple(data$category,',','category')) %>%
-  bind_cols(split_into_multiple(data$mechanic,',','mechanic'))
+game <- game %>% bind_cols(split_into_multiple(game$category,',','category')) %>%
+  bind_cols(split_into_multiple(game$mechanic,',','mechanic'))
 
 #Cleaning
-data <- data %>% select(-category, -mechanic, -designer, -image_url)
+game <- game %>% select(-category, -mechanic, -designer, -image_url)
 
 #Tidying
-tidydata <- data %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
+tidygame <- game %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
   gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
 
-tidydata$mechanics <- trimws(tidydata$mechanics)
-tidydata$categoires <- trimws(tidydata$categories)
+tidygame$mechanics <- trimws(tidygame$mechanics)
+tidygame$categoires <- trimws(tidygame$categories)
 
 ```
 
@@ -78,56 +180,56 @@ tidydata$categoires <- trimws(tidydata$categories)
 #Continuous variables
 library(gridExtra)
 
-p1 <- data %>% ggplot(aes(min_players)) +
-  geom_histogram() +
+p1 <- game %>% ggplot(aes(min_players)) +
+  geom_histogram(color = "black") +
   xlim(0,8)
 # seems like more of a categorical variable
-p2 <- data %>% ggplot(aes(max_players)) +
-  geom_histogram() + 
+p2 <- game %>% ggplot(aes(max_players)) +
+  geom_histogram(color = "black") + 
   scale_x_log10()
 # log transfom fits better
-p3 <- data %>% ggplot(aes(min_time)) +
-  geom_histogram() +
+p3 <- game %>% ggplot(aes(min_time)) +
+  geom_histogram(color = "black") +
   scale_x_log10()
 # log transform fits better
-p4 <- data %>% ggplot(aes(max_time)) +
-  geom_histogram() +
+p4 <- game %>% ggplot(aes(max_time)) +
+  geom_histogram(color = "black") +
   scale_x_log10()
 # log transform fits better
-p5 <- data %>% ggplot(aes(year)) +
-  geom_histogram() +
+p5 <- game %>% ggplot(aes(year)) +
+  geom_histogram(color = "black") +
   xlim(1900,2019)
 # Exponential
-p6 <- data %>% ggplot(aes(avg_rating)) +
-  geom_histogram()
-p7 <- data %>% ggplot(aes(geek_rating)) +
-  geom_histogram()
+p6 <- game %>% ggplot(aes(avg_rating)) +
+  geom_histogram(color = "black")
+p7 <- game %>% ggplot(aes(geek_rating)) +
+  geom_histogram(color = "black")
 # Exponential
-p8 <- data %>% ggplot(aes(num_votes)) +
-  geom_histogram() +
+p8 <- game %>% ggplot(aes(num_votes)) +
+  geom_histogram(color = "black") +
   scale_x_log10()
 # log transform fits better
-p9 <- data %>% ggplot(aes(age)) +
-  geom_histogram()
-p10 <- data %>% ggplot(aes(owned)) +
-  geom_histogram() +
+p9 <- game %>% ggplot(aes(age)) +
+  geom_histogram(color = "black")
+p10 <- game %>% ggplot(aes(owned)) +
+  geom_histogram(color = "black") +
   scale_x_log10()
 # log transform fits beter
-p11 <- data %>% ggplot(aes(weight)) +
-  geom_histogram()
+p11 <- game %>% ggplot(aes(weight)) +
+  geom_histogram(color = "black")
 
 grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, ncol = 3)
 
 #Categorical variables
-length(unique(data$mechanic_1)) # 51 
-length(unique(data$category_1)) # 82
-length(unique(data$designer_1)) # 1990, too many categories for designers
+length(unique(game$mechanic_1)) # 51 
+length(unique(game$category_1)) # 82
+length(unique(game$designer_1)) # 1990, too many categories for designers
 
-unique(tidydata$mechanics)
+unique(tidygame$mechanics)
 ## Correlations
 
 #Mechanics vs ratings
-tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
+tidygame %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
   geom_point(aes(avggeek, reorder(mechanics, avgrank)), size = 0.1, color = "blue") +
   geom_point(aes(avgrating, mechanics), size = 0.1, color = "red") + 
   theme(axis.text=element_text(size=4)) +
@@ -136,7 +238,7 @@ tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avg
   ggtitle("Ratings by Mechanics") #can't figure out how to add a legend or how to sort by descending **
 
 #Categories vs ratings
-tidydata %>% group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
+tidygame %>% group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
   geom_point(aes(avggeek, reorder(categories, avgrank)), size = 0.1, color = "blue") +
   geom_point(aes(avgrating, categories), size = 0.1, color = "red") + 
   theme(axis.text=element_text(size=4)) +
@@ -145,42 +247,62 @@ tidydata %>% group_by(categories) %>% summarize(avgrating = mean(avg_rating), av
   ggtitle("Ratings by Categories")
 
 #Average time vs ratings
-plot(geek_rating ~ I((log(min_time) + log(max_time))/2), data = data)
-cor(data$geek_rating, data$max_time)
+plot(geek_rating ~ I((log(min_time) + log(max_time))/2), game = game)
+cor(game$geek_rating, game$max_time)
 
 #Number of players vs ratings
-plot(geek_rating ~ I((log(min_players) + log(max_players))/2), data = data)
-cor(data$geek_rating, data$min_players)
-cor(data$geek_rating, data$max_players)
+plot(geek_rating ~ I((log(min_players) + log(max_players))/2), game = game)
+cor(game$geek_rating, game$min_players)
+cor(game$geek_rating, game$max_players)
 
 #Popularity vs ratings (ownership and number of votes)
-plot(geek_rating ~ I(log(num_votes)) + I(log(owned)), data = data)
-cor(data$geek_rating, data$num_votes)
-cor(data$geek_rating, data$owned)
+plot(geek_rating ~ I(log(num_votes)) + I(log(owned)), game = game)
+cor(game$geek_rating, game$num_votes)
+cor(game$geek_rating, game$owned)
 
 #Age vs ratings
-plot(geek_rating ~ age, data = data)
-cor(data$geek_rating, data$age)
+plot(geek_rating ~ age, game = game)
+cor(game$geek_rating, game$age)
 
 #Weight vs ratings
-plot(geek_rating ~ weight, data = data)
-cor(data$geek_rating, data$weight)
+plot(geek_rating ~ weight, game = game)
+cor(game$geek_rating, game$weight)
   
 ```
 
 ## Predictive model:
 lm(formula = geek_rating ~ num_votes + categories + age + mechanics + 
-    owned + max_time + max_players, data = tidydata)
+    owned + max_time + max_players, game = tidygame)
 Adjusted R^2: 0.48
 ```{r}
 #Most reliable covariates and make the most sense to test are: age, owned, num_votes, time (avg, min, max), players (min, max)
 #outcome variable would be either avg rating or geek rating
 
-mod1 <- step(lm(geek_rating ~ 1, data = tidydata), ~ owned + num_votes + mechanics + categories + age + max_time + max_players, direction = "both")
+mod1 <- step(lm(geek_rating ~ 1, game = tidygame), ~ owned + num_votes + mechanics + categories + age + max_time + max_players, direction = "both")
 summary(mod1)
 ```
 
+## Cross Validation
+```{r}
+library(caret)
 
+control <- trainControl(method = 'cv', number = 20)
+model <- train(avg_rating ~ mechanics + owned + num_votes + categories + age + max_time + max_players + weight,
+             data = tidygame,
+             method = "lm",
+             na.action=na.exclude,
+             trControl = control,
+             metric = "RMSE")
+model
+```
+Resampling results:
+
+  RMSE       Rsquared   MAE      
+  0.4745211  0.3543951  0.3726993
+
+Tuning parameter 'intercept' was held constant at
+ a value of TRUE
+ 
 ## Generation of test set via webscrapping
 ```{r}
 
