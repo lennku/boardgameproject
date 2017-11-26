@@ -252,11 +252,21 @@ game %>% filter(year >=1980) %>%
 ```
 
 ### 5）Try knn (Chen), svm (Shimin, Chen)
+      Cross validation to choose parameters
+      
 ```{r}
+library(caret)
+set.seed(1)
 game <- read.csv("game_recode.txt", header = T, sep = "|") 
+
+inTrain <- createDataPartition(y = game$avg_rating,
+                               p=0.8)$Resample
+train_set <- slice(game, inTrain) 
+test_set <- slice(game, -inTrain)
+
 control <- trainControl(method = 'cv', number = 20)
 model <- train(avg_rating ~owned + num_votes  + age + max_time + max_players + weight,
-             data = game,
+             data = train_set,
              method = "knn",
              na.action=na.exclude,
              trControl = control,
@@ -266,71 +276,23 @@ model
 
 k-Nearest Neighbors 
 
-4909 samples
+3929 samples
    6 predictor
 
 No pre-processing
 Resampling: Cross-Validated (20 fold) 
-Summary of sample sizes: 4665, 4664, 4664, 4663, 4665, 4665, ... 
+Summary of sample sizes: 3732, 3733, 3733, 3733, 3733, 3733, ... 
 Resampling results across tuning parameters:
 
   k  RMSE       Rsquared   MAE      
-  5  0.5018103  0.2290551  0.3942637
-  7  0.4914147  0.2467459  0.3862379
-  9  0.4868664  0.2549673  0.3832619
+  5  0.5081066  0.2177139  0.3981504
+  7  0.4991064  0.2319279  0.3927227
+  9  0.4926143  0.2447482  0.3873604
 
 RMSE was used to select the optimal model using  the smallest value.
 The final value used for the model was k = 9.
 
-##########
-
-```{r}
-library(caret)
-set.seed(1)
-inTrain <- createDataPartition(y = game$avg_rating,
-                               p=0.9)$Resample
-
-#X <- game %>% select(-game_id) %>% slice(inTrain) %>% as.matrix
-
-g <- game %>% filter(!is.na(weight))
-
-train_set <- slice(g, inTrain) %>% 
-  select(avg_rating, weight)
-test_set <- slice(g, -inTrain) %>% 
-  select(avg_rating,  weight)
 
 
-#tmp = sample_n(train_set,500)
-
-control <- trainControl(method='cv', number=20)
-res <- train(avg_rating ~ .,
-             data = train_set,
-             method = "knn",
-             tuneGrid=data.frame(k=seq(1,30,2)),
-             trControl = control)
-
-plot(res)
-
-fit <- knnreg(avg_rating ~ ., train_set, k=3)
-pred <- predict(fit, newdata = test_set)
-
-tab <- table(pred, test_set$avg_rating)
-confusionMatrix(tab)
-
-```
-
-6）Cross validation to choose parameters
-
-```{r}
-game <- read.csv("game_recode.txt", header = T, sep = "|") 
-control <- trainControl(method = 'cv', number = 20)
-model <- train(avg_rating ~owned + num_votes  + age + max_time + max_players + weight,
-             data = game,
-             method = "knn",
-             na.action=na.exclude,
-             trControl = control,
-             metric = "RMSE")
-model
-```
 
 
