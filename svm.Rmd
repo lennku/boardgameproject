@@ -3,13 +3,12 @@ title: "svm"
 output: html_document
 ---
 
-
 ```{r}
 library(dplyr)
 library(caret)
 set.seed(1)
 
-inTrain <- createDataPartition(y = game$avg_rating,
+inTrain <- createDataPartition(y = game$geek_rating,
                                p=0.8)$Resample
 train_set <- slice(game, inTrain) 
 test_set <- slice(game, -inTrain)
@@ -26,15 +25,57 @@ model
 
 Support Vector Machines with Linear Kernel 
 
-3929 samples
+3927 samples
    6 predictor
 
 No pre-processing
 Resampling: Cross-Validated (20 fold) 
-Summary of sample sizes: 3732, 3733, 3732, 3730, 3732, 3732, ... 
+Summary of sample sizes: 3730, 3731, 3731, 3730, 3731, 3731, ... 
 Resampling results:
 
-  RMSE       Rsquared  MAE      
-  0.4606422  0.323174  0.3620871
+  RMSE       Rsquared   MAE      
+  0.4652163  0.3203181  0.3669611
 
 Tuning parameter 'C' was held constant at a value of 1
+
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+#library(splitstackshape)
+#library(treemap) 
+library(formattable) 
+library(ggplot2) 
+
+game$category <- as.character(game$category)
+catecol <- cSplit(game,splitCols = "category",direction = "long")
+catecol.table <- as.data.frame(table(catecol$category))
+
+cate <- catecol[,c("rank","category")]
+cate$category <- as.factor(cate$category)
+cate <- dcast(cate, rank ~ category, function(x) 1, fill = 0)
+
+
+######## Add more columns for variables 
+cate$geek_rating <- game$geek_rating
+
+
+model <- lm(geek_rating~.,data=cate[,-1])
+coeff <- as.data.frame(model$coefficients)
+coeff$category <- as.factor(rownames(coeff))
+colnames(coeff) <- c("coef","category")
+
+ggplot(coeff[-1,], aes(x=category,y=coef,fill=coef))+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  labs(title="Linear Model Coefficients for Category",y="Coefficients",x="Category")+
+  scale_fill_gradient(low="red", high="green")+
+  theme_light()
+```
+
+
+
+
+
