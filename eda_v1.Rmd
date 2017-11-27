@@ -1,0 +1,230 @@
+---
+title: "decision_tree"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Recode mechanics and categories data
+```{r}
+library(purrr)
+library(stringr)
+library(ggplot2)
+library(dslabs)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(readr)
+
+# import data
+df <- read.csv('https://raw.githubusercontent.com/lennku/boardgameproject/Shimin/game_recode.txt', header = T, sep = '|')
+df1 <- df %>% filter(year >= 1980)
+
+
+# recode mechanics
+
+# find unique mechanics
+mech_str <- paste(as.character(df1$mechanic), collapse = ", ")
+mech_unique <- unique(strsplit(mech_str, ", ")[[1]])
+mech_unique_lower <- unlist(lapply(mech_unique, function(x) {paste(strsplit(tolower(x), " ")[[1]], collapse = "_")}))
+
+# create one empty column for each unique mechanic
+mechanic_col <- data.frame(matrix(0, ncol = length(mech_unique_lower), nrow = dim(df1)[1]))
+colnames(mechanic_col) <- mech_unique_lower
+
+# fill in the values of the mechanic columns
+for (i in 1:dim(df1)[1]) {
+  mech_col_num <- which(mech_unique %in% c(strsplit(as.character(df1$mechanic[i]), ", ")[[1]]))
+  for (j in mech_col_num) {
+    mechanic_col[i, j] <- 1
+  }
+}
+
+# recode categories
+
+# find unique categories
+cat_str <- paste(as.character(df1$category), collapse = ", ")
+cat_unique <- unique(strsplit(cat_str, ", ")[[1]])
+cat_unique_lower <- unlist(lapply(cat_unique, function(x) {paste(strsplit(tolower(x), " ")[[1]], collapse = "_")}))
+
+# create one empty column for each unique category
+cat_col <- data.frame(matrix(0, ncol = length(cat_unique_lower), nrow = dim(df1)[1]))
+colnames(cat_col) <- cat_unique_lower
+
+# fill in the values of the category columns
+for (i in 1:dim(df1)[1]) {
+  cat_col_num <- which(cat_unique %in% c(strsplit(as.character(df1$category[i]), ", ")[[1]]))
+  for (j in cat_col_num) {
+    cat_col[i, j] <- 1
+  }
+}
+
+df_new <- cbind(df1, mechanic_col)
+write.table(df_new, 'df_w_mechanic', sep = "|")
+df_new2 <- cbind(df1, cat_col)
+write.table(df_new2, 'df_w_cat')
+```
+
+Get top 10 most popular mechanics throughout 1980-present
+```{r}
+head(sort(colSums(mechanic_col, na.rm = TRUE), decreasing = TRUE), n = 10)
+```
+
+Get percentage of games with each of the top 10 mechanics in each year
+```{r}
+library(lazyeval)
+df_new1 <- df_new %>% filter(!is.na(year))
+df_new1$year_group <- cut(df_new1$year, breaks = c(1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2018), include.lowest = TRUE)
+dice_rolling <- df_new1 %>%
+    group_by(year_group) %>%
+    summarize(percent = sum(dice_rolling, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "dice_rolling")
+hand_management <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(hand_management, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "hand_management")
+variable_player_powers <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(variable_player_powers, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "variable_player_powers")
+set_collection <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(set_collection, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "set_collection")
+`area_control_/_area_influence` <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(`area_control_/_area_influence`, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "area_control_/_area_influence")
+card_drafting <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(card_drafting, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "card_drafting")
+modular_board <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(modular_board, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "modular_board")
+tile_placement <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(tile_placement, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "tile_placement")
+`hex-and-counter` <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(`hex-and-counter`, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "hex-and-counter")
+`auction/bidding` <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(`auction/bidding`, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "auction/bidding")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+mechanic_by_year <- as.data.frame(bind_rows(dice_rolling, hand_management, variable_player_powers, set_collection, `area_control_/_area_influence`, card_drafting, modular_board, tile_placement, `hex-and-counter`, `auction/bidding`))
+ggplot() + 
+  geom_point(aes(x = dice_rolling$year_group, y = dice_rolling$percent, col = 'dice_rolling')) + 
+  geom_line(aes(x = dice_rolling$year_group, y = dice_rolling$percent, group = 1, col = 'dice_rolling')) +
+  geom_point(aes(x = hand_management$year_group, y = hand_management$percent, col = 'hand_management')) + 
+  geom_line(aes(x = hand_management$year_group, y = hand_management$percent, group = 1, col = 'hand_management')) + 
+  geom_point(aes(x = variable_player_powers$year_group, y = variable_player_powers$percent, col = 'variable_player_powers')) +
+  geom_line(aes(x = variable_player_powers$year_group, y = variable_player_powers$percent, group = 1, col = 'variable_player_powers')) + 
+  geom_point(aes(x = set_collection$year_group, y = set_collection$percent, col = 'set_collection')) + 
+  geom_line(aes(x = set_collection$year_group, y = set_collection$percent, group = 1, col = 'set_collection')) +
+  geom_point(aes(x = `area_control_/_area_influence`$year_group, y = `area_control_/_area_influence`$percent, col = 'area_control_/_area_influence')) + 
+  geom_line(aes(x = `area_control_/_area_influence`$year_group, y = `area_control_/_area_influence`$percent, group = 1, col = 'area_control_/_area_influence')) +
+  geom_point(aes(x = card_drafting$year_group, y = card_drafting$percent, col = 'card_drafting')) + 
+  geom_line(aes(x = card_drafting$year_group, y = card_drafting$percent, group = 1, col = 'card_drafting')) +
+  scale_colour_manual("", 
+                      breaks = c("dice_rolling", "hand_management", "variable_player_powers", "set_collection", "area_control_/_area_influence", "card_drafting"),
+                      values = cbPalette[1:6]) +
+  scale_x_discrete(breaks = dice_rolling$year_group, 
+                   labels = seq(1980, 2015, 5)) +
+  xlab("Year") +
+  ylab("Percentage of games") +
+  ggtitle("Evolution of Game Mechanics 1980 - 2018")
+```
+
+Get top 10 most popular categories throughout 1980-present
+```{r}
+head(sort(colSums(cat_col, na.rm = TRUE), decreasing = TRUE), n = 10)
+
+df_new2 <- df_new2 %>% filter(!is.na(year))
+df_new2$year_group <- cut(df_new2$year, breaks = c(1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2018), include.lowest = TRUE)
+card_game <- df_new2 %>%
+    group_by(year_group) %>%
+    summarize(percent = sum(card_game, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "card_game")
+wargame <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(wargame, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "wargame")
+fantasy <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(fantasy, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "fantasy")
+economic <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(economic, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "economic")
+fighting <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(fighting, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "fighting")
+science_fiction <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(science_fiction, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "science_fiction")
+dice <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(dice, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "dice")
+world_war_ii <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(world_war_ii, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "world_war_ii")
+medieval <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(medieval, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "medieval")
+bluffing <- df_new2 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(bluffing, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "bluffing")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+#mechanic_by_year <- as.data.frame(bind_rows(dice_rolling, hand_management, variable_player_powers, set_collection, `area_control_/_area_influence`, card_drafting, modular_board, tile_placement, `hex-and-counter`, `auction/bidding`))
+ggplot() + 
+  geom_point(aes(x = card_game$year_group, y = card_game$percent, col = 'card_game')) + 
+  geom_line(aes(x = card_game$year_group, y = card_game$percent, group = 1, col = 'card_game')) +
+  geom_point(aes(x = wargame$year_group, y = wargame$percent, col = 'wargame')) + 
+  geom_line(aes(x = wargame$year_group, y = wargame$percent, group = 1, col = 'wargame')) + 
+  geom_point(aes(x = fantasy$year_group, y = fantasy$percent, col = 'fantasy')) +
+  geom_line(aes(x = fantasy$year_group, y = fantasy$percent, group = 1, col = 'fantasy')) + 
+  geom_point(aes(x = economic$year_group, y = economic$percent, col = 'economic')) + 
+  geom_line(aes(x = economic$year_group, y = economic$percent, group = 1, col = 'economic')) +
+  geom_point(aes(x = fighting$year_group, y = fighting$percent, col = 'fighting')) + 
+  geom_line(aes(x = fighting$year_group, y = fighting$percent, group = 1, col = 'fighting')) +
+  geom_point(aes(x = science_fiction$year_group, y = science_fiction$percent, col = 'science_fiction')) + 
+  geom_line(aes(x = science_fiction$year_group, y = science_fiction$percent, group = 1, col = 'science_fiction')) +
+  scale_colour_manual("", 
+                      breaks = c("card_game", "wargame", "fantasy", "economic", "fighting", "science_fiction"),
+                      values = cbPalette[1:6]) +
+  scale_x_discrete(breaks = dice_rolling$year_group, 
+                   labels = seq(1980, 2015, 5)) +
+  xlab("Year") +
+  ylab("Percentage of games") +
+  ggtitle("Evolution of Game Categories 1980 - 2018")
+```
+
+Most popular mechanics in top 100 games
+```{r}
+df_top_100 <- df_new %>% filter(rank <= 100)
+head(sort(colSums(df_top_100[, 27:78], na.rm = TRUE), decreasing = TRUE), 10)
+```
+
+Clustering
+```{r}
+library(fpc)
+df_cluster <- na.omit(df)
+df_cluster <- df_cluster %>% select(min_players, avg_time, year)
+df_cluster <- scale(df_cluster)
+fit <- kmeans(df_cluster, 5)
+plotcluster(df_cluster, fit$cluster)
+```
