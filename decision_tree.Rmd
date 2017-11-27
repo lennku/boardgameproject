@@ -1,0 +1,65 @@
+---
+title: "decision_trees"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# import data
+df <- read.csv('https://raw.githubusercontent.com/lennku/boardgameproject/Shimin/game_recode.txt', header = T, sep = '|')
+df1 <- df %>% filter(year >= 1980)
+df_w_mechanic <- read.csv('/Users/yqiu/Dropbox/HSPH/SEM1/BST260/bst260_project/decision_tree/df_w_mechanic', sep = "|")
+#mech_only <- df_w_mechanic[, c(11, 27:78)]
+
+# build decision tree
+library(caret)
+library(rpart)
+df1_na_omit <- na.omit(df_w_mechanic)
+inTrain <- createDataPartition(y = df1_na_omit$avg_rating,
+                               p=0.8)$Resample
+train_set <- slice(df1_na_omit, inTrain) 
+test_set <- slice(df1_na_omit, -inTrain)
+control <- trainControl(method = 'cv', number = 20)
+
+#model <- train(avg_rating ~ .,
+#             data = train_set,
+#             method = "ctree",
+#             na.action=na.exclude,
+#             trControl = control,  
+#             metric = "RMSE")
+fit <- rpart(avg_rating ~  cate_avgtime + single_player + multi_player + party_player + weight + year, 
+      data = train_set,
+      method = "anova")
+printcp(fit)
+rsq.rpart(fit)
+plot(fit, uniform = TRUE); text(fit)
+rsq.rpart(fit)
+#ctreeVarImp <- varImp(model)
+#summary(model)
+```
+
+Random Forest
+```{r}
+library(randomForest)
+train_set_select <- train_set[, c(10, 11, 15, 20, 21, 22, 23, 24, 25, 26, 27:40)]
+fit <- randomForest(avg_rating ~  ., 
+      data = train_set_select)
+#fit <- randomForest(avg_rating ~  cate_avgtime + single_player + multi_player + party_player + year, 
+#      data = train_set)
+print(fit) # view results 
+impt <- as.data.frame(importance(fit))
+impt$variable <- names(train_set_select[-2])
+impt <- transform(impt, variable = reorder(variable, IncNodePurity))
+impt %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
+  ggplot() +
+  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') + 
+  coord_flip() +
+  ylab("Feature Importance") + 
+  xlab("Feature") +
+  ggtitle("Board Game Features Ranked by Importance") # importance of each predictor
+```
+
