@@ -8,10 +8,10 @@ library(dplyr)
 library(caret)
 set.seed(1)
 
-inTrain <- createDataPartition(y = game$geek_rating,
+inTrain <- createDataPartition(y = fgame$geek_rating,
                                p=0.8)$Resample
-train_set <- slice(game, inTrain) 
-test_set <- slice(game, -inTrain)
+train_set <- slice(fgame, inTrain) 
+test_set <- slice(fgame, -inTrain)
 
 control <- trainControl(method = 'cv', number = 20)
 model <- train(avg_rating ~ owned + num_votes + age + max_time + max_players + weight,
@@ -21,6 +21,7 @@ model <- train(avg_rating ~ owned + num_votes + age + max_time + max_players + w
              trControl = control,  
              metric = "RMSE")
 model
+predict(model)
 ```
 
 Support Vector Machines with Linear Kernel 
@@ -44,14 +45,18 @@ Tuning parameter 'C' was held constant at a value of 1
 ```{r}
 library(dplyr)
 library(tidyr)
-#library(splitstackshape)
-#library(treemap) 
+library(splitstackshape)
+library(treemap) 
+library(viridisLite) 
 library(formattable) 
 library(ggplot2) 
+library(RColorBrewer)
 
 game$category <- as.character(game$category)
 catecol <- cSplit(game,splitCols = "category",direction = "long")
 catecol.table <- as.data.frame(table(catecol$category))
+
+treemap(catecol.table, index = "Var1",vSize = "Freq", vColor ="#58ACFA", palette = "Blues")
 
 cate <- catecol[,c("rank","category")]
 cate$category <- as.factor(cate$category)
@@ -73,9 +78,14 @@ ggplot(coeff[-1,], aes(x=category,y=coef,fill=coef))+
   labs(title="Linear Model Coefficients for Category",y="Coefficients",x="Category")+
   scale_fill_gradient(low="red", high="green")+
   theme_light()
+
 ```
 
 
+```{r}
+#library(readr)
+fgame <- read.csv("df_recode_final_1127", header=T, sep="|")
+```
 
 
 
