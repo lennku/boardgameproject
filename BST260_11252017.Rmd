@@ -65,18 +65,18 @@ g <- game %>% bind_cols(split_into_multiple(game$category,',','category')) %>%
   bind_cols(split_into_multiple(game$mechanic,',','mechanic'))
 
 #Cleaning
-g <- game %>% select(-category, -mechanic, -designer, -image_url)
+g <- g %>% select(-category, -mechanic, -designer, -image_url)
 
 #Tidying
 tidydata <- g %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
   gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
 
 tidydata$mechanics <- trimws(tidydata$mechanics)
-tidydata$categoires <- trimws(tidydata$categories)
+tidydata$categories <- trimws(tidydata$categories)
 
 
 #Mechanics vs ratings
-tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% 
+tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%
   ggplot() +
   geom_point(aes(avggeek, reorder(mechanics, avgrank), color = 'avg_geek'), size = 0.5) +
   geom_point(aes(avgrating, mechanics, color = 'avg_rating'), size = 0.5) +
@@ -87,7 +87,9 @@ tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avg
   ggtitle("Ratings by Mechanics") 
 
 #Categories vs ratings
-tidydata %>% group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>% ggplot() +
+tidydata %>% 
+ group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%  
+  ggplot() +
   geom_point(aes(avggeek, reorder(categories, avgrank), color = 'avg_geek'), size = 0.5) +
   geom_point(aes(avgrating, categories, color = 'avg_rating'), size = 0.5) + 
   scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
