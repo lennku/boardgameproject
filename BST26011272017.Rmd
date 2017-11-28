@@ -1,0 +1,558 @@
+---
+title: "260_project_11272017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dslabs)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(readr)
+ds_theme_set()
+
+#game <- read.csv(file = file.choose()) #4999   20
+#iqgame <- read.csv('bgg_db_2017_04.csv', header = TRUE)
+
+# clean and recoded data
+
+game <- read.csv("df_recode_final_1127",  header =T, sep = "|") 
+names(game) #  4750  160
+```
+
+## 1 EDA - basic discription
+### 1 ) missting value?
+```{r}
+missing(game) #none
+```
+ 
+### 2）Mechanic and category plot
+
+```{r}
+library(purrr)
+library(stringr)
+# Functions
+split_into_multiple <- function(column, pattern = ", ", into_prefix){
+  cols <- str_split_fixed(column, pattern, n = Inf)
+  cols[which(cols == "")] <- NA
+  cols <- as.tibble(cols)
+  m <- dim(cols)[2]
+  names(cols) <- paste(into_prefix, 1:m, sep = "_")
+  return(cols)
+}
+
+#Splitting 
+g <- game %>% bind_cols(split_into_multiple(game$category,',','category')) %>%
+  bind_cols(split_into_multiple(game$mechanic,',','mechanic'))
+
+#Cleaning
+g <- g %>% select(-category, -mechanic, -designer, -image_url)
+
+#Tidying
+tidydata <- g %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
+  gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
+
+tidydata$mechanics <- trimws(tidydata$mechanics)
+tidydata$categories <- trimws(tidydata$categories)
+
+
+#Mechanics vs ratings
+tidydata %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%
+  ggplot() +
+  geom_point(aes(avggeek, reorder(mechanics, avgrank), color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(avgrating, mechanics, color = 'avg_rating'), size = 0.5) +
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
+  theme(axis.text=element_text(size=4)) +
+  ylab("Rank") +
+  xlab("Rating") +
+  ggtitle("Ratings by Mechanics") 
+
+#Categories vs ratings
+tidydata %>% 
+ group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%  
+  ggplot() +
+  geom_point(aes(avggeek, reorder(categories, avgrank), color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(avgrating, categories, color = 'avg_rating'), size = 0.5) + 
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
+  theme(axis.text=element_text(size=4)) +
+  ylab("Rank") +
+  xlab("Rating") +
+  ggtitle("Ratings by Categories") 
+```
+
+
+### 3)  descriptive analysis of covariates (plots)
+
+
+```{r}
+game %>% ggplot(aes(geek_rating, avg_rating)) +
+  geom_point(alpha = 0.8) +
+   geom_smooth()
+```
+
+*the distribution of avg_rating across years & the distribution of geek_rating across years*
+
+```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980 ) %>%
+  summarise(avg_mean = mean(avg_rating), geek_mean = mean(geek_rating)) %>%
+  ggplot()+
+  geom_point(aes(year, avg_mean, col = 'avg_mean'))+
+  geom_point(aes(year,  geek_mean, col = 'geek_mean'))+
+  scale_colour_manual(name="rating", values=c(avg_mean="red",geek_mean ="blue")) +
+  ylab("rating") +
+  xlab("year") +
+  ggtitle('The distribution of avg_rating and geek_rating across years')
+```
+
+
+*the distribution of owned and votes across years*
+
+```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980) %>%
+  summarise(sum1 = sum(owned), sum2 = sum(num_votes)) %>%
+  ggplot()+
+  geom_point(aes(year, sum1, col = 'owned'))+
+  geom_point(aes(year, sum2, col = 'votes'))+
+  scale_colour_manual(name="total number of", values=c(owned="red", votes="blue")) +
+  ylab("total number") +
+  xlab("year") +
+  ggtitle('The distribution of total owned and votes across years')
+
+# only  4, game$owned == game$num_votes
+
+```
+
+*the distribution of weights  across years*
+
+```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980) %>%
+  summarise(m = mean(weight)) %>%
+  ggplot(aes(year, m))+
+  geom_point(color = 'blue')+
+  ylab("weights") +
+  xlab("year") +
+  ggtitle('The distribution of mean weight of board games across years')
+```
+
+*the distribution of ranks across years*
+
+```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980) %>%
+  summarise(m = mean(rank)) %>%
+  ggplot(aes(year, m))+
+  geom_point()+
+  ggtitle('the distribution of mean rank of board games across years')
+```
+
+
+### 4) Age and age group
+
+*Distribution of age*
+
+```{r}
+game %>% ggplot(aes(age)) +
+  geom_histogram()
+```
+
+*generate 3 age groups based on interquartile*
+
+#### (1) generate agecat according IQR*
+
+```{r}
+Q1 <- quantile(game$age, 0.25) 
+Q3 <- quantile(game$age, 0.75) 
+game <- game %>% mutate(agecat = ifelse (age %in% range(0,Q1), 1, ifelse(age %in% range(Q1, Q3), 2, 3)))
+```
+
+
+#### (2).1 top 10 rated (avg_rating) for each age group, game_id*
+
+```{r}
+# agecat == 1 when age %in% range(0,Q1)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 2 when age %in% range(Q1,Q3)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 2) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 3 when age %in% range(Q3,)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 3) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+```
+
+
+ *top 10 rated (avg_geek) for each age group, game_id*
+ 
+```{r}
+# agecat == 1 when age %in% range(0,Q1)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 2 when age %in% range(Q1,Q3)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 2) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+# agecat == 3 when age %in% range(Q3,)
+game %>% 
+  select(avg_rating, geek_rating, rank, age, agecat, game_id, names) %>%
+  filter(agecat == 3) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+```
+
+#### (2).2 for each age group, get top 100 ranked games, and then find the ctop 10 rated (freq) for each age group, mechanics*
+mechanic 27 -76 
+
+```{r}
+# agecat == 1 when age %in% range(0,Q1)
+top100_1 <- game %>% 
+  filter(agecat == 1) %>% 
+  arrange(rank) %>%
+  mutate(new_rank = 1:n()) %>%
+  filter(new_rank <= 100) 
+mechanic <- top100_1[,27:76]
+m1 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+  
+# agecat == 2 when age %in% range(Q1,Q3)
+top100_2 <- game %>% 
+  filter(agecat == 2) %>% 
+  arrange(rank) %>%
+  mutate(new_rank = 1:n()) %>%
+  filter(new_rank <= 100) 
+mechanic <- top100_2[,27:76]
+m2 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+
+# agecat == 3 when age %in% range(Q3,)
+top100_3 <- game %>% 
+  filter(agecat == 3) %>% 
+  arrange(rank) %>%
+  mutate(new_rank = 1:n()) %>%
+  filter(new_rank <= 100) 
+mechanic <- top100_3[,27:76]
+m3 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+```
+
+
+*Plot for 3 age groups*
+
+```{r}
+library(RColorBrewer)
+m11 <- data.frame(names=names(m1), m1)
+m22 <- data.frame(names=names(m2), m2)
+m33 <- data.frame(names=names(m3), m3)
+
+
+
+p1 <- m11 %>% mutate(freq = m1) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('Age 0-8') +
+  ylab('Frequency') +
+  coord_flip() 
+ 
+
+p2 <- m22 %>% mutate(freq = m2) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('Age 9-12') +
+  ylab('Frequency') +
+  coord_flip()
+
+p3 <-  m33 %>% mutate(freq = m3) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('Age 13-42') +
+  ylab('Frequency') +
+  coord_flip()
+
+
+require("gridExtra")
+grid.arrange(arrangeGrob(p1, p2, p3))
+```
+
+
+#### (2).3 top 10 rated for each age group, categories*
+category 78-last
+
+
+```{r}
+c1 <- top100_1[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+c2 <- top100_2[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+c3 <- top100_3[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+
+c11 <- data.frame(names=names(c1), c1)
+c22 <- data.frame(names=c(names(c2)[1:7], 'manufacturing', names(c2)[9:10]), c2)
+c33 <- data.frame(names=names(c3), c3)
+
+
+pc1 <- c11 %>% mutate(freq = c1) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('Age 0-8') +
+  ylab('Frequency') +
+  coord_flip() 
+ 
+
+pc2 <- c22 %>% mutate(freq = c2) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('Age 9-12') +
+  ylab('Frequency') +
+  coord_flip()
+
+pc3 <-  c33 %>% mutate(freq = c3) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('Age 13-42') +
+  ylab('Frequency') +
+  coord_flip()
+
+grid.arrange(arrangeGrob(pc1, pc2, pc3))
+```
+
+
+#### (3).1 Table for top 10 rated for each player
+
+*top 10 rated (avg_rating), game_id*
+
+```{r}
+#single_player
+game %>% 
+  select(avg_rating, geek_rating, rank, single_player, game_id, names) %>%
+  filter(single_player == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+#multi_player
+game %>% 
+  select(avg_rating, geek_rating, rank, multi_player, game_id, names) %>%
+  filter(multi_player == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+
+#party_player
+game %>% 
+  select(avg_rating, geek_rating, rank, party_player, game_id, names) %>%
+  filter(party_player == 1) %>% 
+  arrange(desc(avg_rating)) %>% 
+  head(10) %>% kable
+```
+
+*top 10 rated (avg_geek), game_id*
+
+```{r}
+#single_player
+game %>% 
+  select(avg_rating, geek_rating, rank, single_player, game_id, names) %>%
+  filter(single_player == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+#multi_player
+game %>% 
+  select(avg_rating, geek_rating, rank, multi_player, game_id, names) %>%
+  filter(multi_player == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+
+#party_player
+game %>% 
+  select(avg_rating, geek_rating, rank, party_player, game_id, names) %>%
+  filter(party_player == 1) %>% 
+  arrange(desc(geek_rating)) %>% 
+  head(10) %>% kable
+```
+
+
+#### (3).2 top 10 rated (avg_geek) for each player group, mechanics*
+
+```{r}
+
+#single-player 
+top100_1 <- game %>% 
+   filter(single_player == 1) %>% 
+  arrange(rank) %>%
+  mutate(new_rank = 1:n()) %>%
+  filter(new_rank <= 100) 
+mechanic <- top100_1[,27:76]
+m1 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+  
+# multi-player 
+top100_2 <- game %>% 
+  filter(multi_player == 1) %>% 
+  arrange(rank) %>%
+  mutate(new_rank = 1:n()) %>%
+  filter(new_rank <= 100) 
+mechanic <- top100_2[,27:76]
+m2 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+
+# party-player
+top100_3 <- game %>% 
+  filter(party_player == 1) %>% 
+  arrange(rank) %>%
+  mutate(new_rank = 1:n()) %>%
+  filter(new_rank <= 100) 
+mechanic <- top100_3[,27:76]
+m3 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+
+# plot
+m11 <- data.frame(names=names(m1), m1)
+m22 <- data.frame(names=names(m2), m2)
+m33 <- data.frame(names=names(m3), m3)
+
+
+p1 <- m11 %>% mutate(freq = m1) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('single_player') +
+  ylab('Frequency') +
+  coord_flip() 
+ 
+
+p2 <- m22 %>% mutate(freq = m2) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('multi_player') +
+  ylab('Frequency') +
+  coord_flip()
+
+p3 <-  m33 %>% mutate(freq = m3) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('party_player') +
+  ylab('Frequency') +
+  coord_flip()
+
+grid.arrange(arrangeGrob(p1, p2, p3))
+```
+
+
+#### (3).3 top 10 rated (avg_geek) for each player group, categories*
+
+```{r}
+c1 <- top100_1[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+c2 <- top100_2[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+c3 <- top100_3[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
+
+c11 <- data.frame(names=names(c1), c1)
+c22 <- data.frame(names=names(c2), c2)
+c33 <- data.frame(names=names(c3), c3)
+
+
+pc1 <- c11 %>% mutate(freq = c1) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('single_player') +
+  ylab('Frequency') +
+  coord_flip() 
+ 
+
+pc2 <- c22 %>% mutate(freq = c2) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('multi_player') +
+  ylab('Frequency') +
+  coord_flip()
+
+pc3 <-  c33 %>% mutate(freq = c3) %>%
+  ggplot () +
+  geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme(axis.text=element_text(size=8)) +
+  xlab('party_player') +
+  ylab('Frequency') +
+  coord_flip()
+
+grid.arrange(arrangeGrob(pc1, pc2, pc3))
+```
+
+
+
+# Modeling
+## Try knn (Chen), svm (Shimin, Chen) Cross validation to choose parameters
+      
+```{r}
+library(caret)
+set.seed(1)
+game <- read.csv("game_recode.txt", header = T, sep = "|") 
+
+inTrain <- createDataPartition(y = game$avg_rating,
+                               p=0.8)$Resample
+train_set <- slice(game, inTrain) 
+test_set <- slice(game, -inTrain)
+
+control <- trainControl(method = 'cv', number = 20)
+model <- train(avg_rating ~owned + num_votes  + age + max_time + max_players + weight,
+             data = train_set,
+             method = "knn",
+             na.action=na.exclude,
+             trControl = control,
+             metric = "RMSE")
+model
+```
+
+k-Nearest Neighbors 
+
+3929 samples
+   6 predictor
+
+No pre-processing
+Resampling: Cross-Validated (20 fold) 
+Summary of sample sizes: 3732, 3733, 3733, 3733, 3733, 3733, ... 
+Resampling results across tuning parameters:
+
+  k  RMSE       Rsquared   MAE      
+  5  0.5081066  0.2177139  0.3981504
+  7  0.4991064  0.2319279  0.3927227
+  9  0.4926143  0.2447482  0.3873604
+
+RMSE was used to select the optimal model using  the smallest value.
+The final value used for the model was k = 9.
+
