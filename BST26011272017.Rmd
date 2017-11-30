@@ -103,17 +103,30 @@ game %>% group_by(year) %>%
   summarise(avg_mean = mean(avg_rating), geek_mean = mean(geek_rating)) %>%
   ggplot()+
   geom_point(aes(year, avg_mean, col = 'avg_mean'))+
+  geom_line(aes(year, avg_mean, col = 'avg_mean')) +
   geom_point(aes(year,  geek_mean, col = 'geek_mean'))+
+  geom_line(aes(year,  geek_mean, col = 'geek_mean')) +
   scale_colour_manual(name="rating", values=c(avg_mean="red",geek_mean ="blue")) +
   ylab("rating") +
   xlab("year") +
-  ggtitle('The distribution of avg_rating and geek_rating across years')
+  ggtitle('The distribution of average rating and geek rating across years')
 ```
 
 
 *the distribution of owned and votes across years*
 
 ```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980) %>%
+  summarise(sum2 = sum(owned)) %>%
+  ggplot(aes(year, sum2))+
+  geom_point(color ="blue")+
+  geom_line(color ="blue") +
+  ylab("total number of owned") +
+  xlab("year") +
+  ggtitle('The distribution of total owned across years')
+
+# orginal  owned and votes across years*
 game %>% group_by(year) %>%
   filter(year > 1980) %>%
   summarise(sum1 = sum(owned), sum2 = sum(num_votes)) %>%
@@ -133,13 +146,14 @@ game %>% group_by(year) %>%
 
 ```{r}
 game %>% group_by(year) %>%
-  filter(year > 1980) %>%
-  summarise(m = mean(weight)) %>%
+  filter(year > 1980) %>% 
+  summarise(m = mean(weight, na.rm = T)) %>%
   ggplot(aes(year, m))+
   geom_point(color = 'blue')+
-  ylab("weights") +
+  geom_line(color = 'blue') +
+  ylab("Difficulty") +
   xlab("year") +
-  ggtitle('The distribution of mean weight of board games across years')
+  ggtitle('Changing difficulty of board games across years')
 ```
 
 *the distribution of ranks across years*
@@ -149,7 +163,10 @@ game %>% group_by(year) %>%
   filter(year > 1980) %>%
   summarise(m = mean(rank)) %>%
   ggplot(aes(year, m))+
-  geom_point()+
+  geom_point(color = 'blue')+
+  geom_line(color = 'blue') +
+  ylab("Mean Rank") +
+  xlab("year") +
   ggtitle('the distribution of mean rank of board games across years')
 ```
 
@@ -271,7 +288,7 @@ m33 <- data.frame(names=names(m3), m3)
 p1 <- m11 %>% mutate(freq = m1) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low ="yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('Age 0-8') +
   ylab('Frequency') +
@@ -281,7 +298,7 @@ p1 <- m11 %>% mutate(freq = m1) %>%
 p2 <- m22 %>% mutate(freq = m2) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low ="yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('Age 9-12') +
   ylab('Frequency') +
@@ -290,9 +307,9 @@ p2 <- m22 %>% mutate(freq = m2) %>%
 p3 <-  m33 %>% mutate(freq = m3) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low ="yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
-  xlab('Age 13-42') +
+  xlab('Age 13-21') +
   ylab('Frequency') +
   coord_flip()
 
@@ -319,7 +336,7 @@ c33 <- data.frame(names=names(c3), c3)
 pc1 <- c11 %>% mutate(freq = c1) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low ="yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('Age 0-8') +
   ylab('Frequency') +
@@ -329,7 +346,7 @@ pc1 <- c11 %>% mutate(freq = c1) %>%
 pc2 <- c22 %>% mutate(freq = c2) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low ="yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('Age 9-12') +
   ylab('Frequency') +
@@ -338,9 +355,9 @@ pc2 <- c22 %>% mutate(freq = c2) %>%
 pc3 <-  c33 %>% mutate(freq = c3) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low ="yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
-  xlab('Age 13-42') +
+  xlab('Age 13-21') +
   ylab('Frequency') +
   coord_flip()
 
@@ -441,7 +458,7 @@ m33 <- data.frame(names=names(m3), m3)
 p1 <- m11 %>% mutate(freq = m1) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('single_player') +
   ylab('Frequency') +
@@ -451,7 +468,7 @@ p1 <- m11 %>% mutate(freq = m1) %>%
 p2 <- m22 %>% mutate(freq = m2) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('multi_player') +
   ylab('Frequency') +
@@ -460,7 +477,7 @@ p2 <- m22 %>% mutate(freq = m2) %>%
 p3 <-  m33 %>% mutate(freq = m3) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('party_player') +
   ylab('Frequency') +
@@ -485,7 +502,7 @@ c33 <- data.frame(names=names(c3), c3)
 pc1 <- c11 %>% mutate(freq = c1) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('single_player') +
   ylab('Frequency') +
@@ -495,7 +512,7 @@ pc1 <- c11 %>% mutate(freq = c1) %>%
 pc2 <- c22 %>% mutate(freq = c2) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('multi_player') +
   ylab('Frequency') +
@@ -504,7 +521,7 @@ pc2 <- c22 %>% mutate(freq = c2) %>%
 pc3 <-  c33 %>% mutate(freq = c3) %>%
   ggplot () +
   geom_bar(aes(x = reorder(names, freq), y= freq,  fill= freq), stat = "identity") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "yellow", high = 'purple') +
   theme(axis.text=element_text(size=8)) +
   xlab('party_player') +
   ylab('Frequency') +
@@ -518,41 +535,97 @@ grid.arrange(arrangeGrob(pc1, pc2, pc3))
 # Modeling
 ## Try knn (Chen), svm (Shimin, Chen) Cross validation to choose parameters
       
+# KNN
 ```{r}
 library(caret)
 set.seed(1)
-game <- read.csv("game_recode.txt", header = T, sep = "|") 
+game <- read.csv("df_recode_final_1127",  header =T, sep = "|") 
 
-inTrain <- createDataPartition(y = game$avg_rating,
+# drop the irrelevant columns like game ID, names, designer
+# drop na
+g1 <- game[, -c(2:4, 14, 16, 18:19, 77)] #4750  152
+g <- drop_na(g1) # 4666  152
+
+# Spliting data as training and test set. Using createDataPartition() function from caret
+inTrain <- createDataPartition(y = g$avg_rating,
                                p=0.8)$Resample
-train_set <- slice(game, inTrain) 
-test_set <- slice(game, -inTrain)
+train_set <- slice(g1, inTrain) 
+test_set <- slice(g, -inTrain)
 
 control <- trainControl(method = 'cv', number = 20)
-model <- train(avg_rating ~owned + num_votes  + age + max_time + max_players + weight,
+knnFit <- train(avg_rating ~.,
              data = train_set,
              method = "knn",
              na.action=na.exclude,
              trControl = control,
-             metric = "RMSE")
-model
+             preProcess = c("center", "scale"),
+             tuneLength = 10)
+
+knnFit
+
 ```
 
-k-Nearest Neighbors 
 
-3929 samples
-   6 predictor
+#plot it
+```{r}
+plot(knnFit)
+```
 
-No pre-processing
-Resampling: Cross-Validated (20 fold) 
-Summary of sample sizes: 3732, 3733, 3733, 3733, 3733, 3733, ... 
-Resampling results across tuning parameters:
 
-  k  RMSE       Rsquared   MAE      
-  5  0.5081066  0.2177139  0.3981504
-  7  0.4991064  0.2319279  0.3927227
-  9  0.4926143  0.2447482  0.3873604
+#prediction
+```{r}
+knnPredict <- predict(knnFit,newdata = test_set) # 932
+length(knnPredict)
+length(test_set$avg_rating)
+```
 
-RMSE was used to select the optimal model using  the smallest value.
-The final value used for the model was k = 9.
+#plot actual vs prediction
+
+```{r}
+data <- data.frame(cbind(knnPredict,  test_set$avg_rating))
+names(data) <- c('knnPredict','avg_rating')
+
+data %>% ggplot(aes(knnPredict, avg_rating)) +
+  geom_point(color =  'blue') +
+  xlim(c(6,8)) +
+  ylim(c(6,8)) +
+  xlab('KNN_prediction') +
+  ylab('Actual average_rating')
+
+```
+
+
+
+
+
+```{r}
+#Plotting yields Number of Neighbours Vs RMSE (based on repeated cross validation)
+plot(knnFit, print.thres = 0.5, type="S")
+```
+
+
+
+```{r}
+library(pROC)
+knnPredict <- predict(knnFit,newdata = test_set )
+knnROC <- roc(test_set$avg_rating,knnPredict)
+knnROC
+```
+
+
+```{r}
+data <- data.frame(cbind(knnPredict,  test_set$avg_rating))
+names(data) <- c('knnPredict','avg_rating')
+
+data %>% ggplot(aes(knnPredict, avg_rating)) +
+  geom_point(color =  'blue') +
+  xlim(c(6,8)) +
+  ylim(c(6,8)) 
+
+#+
+ # stat_ellipse(lwd=2, type='norm')
+
+```
+
+
 
