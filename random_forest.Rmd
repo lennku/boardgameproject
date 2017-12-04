@@ -1,0 +1,110 @@
+---
+title: "random_forest"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(caret)
+library(rpart)
+library(randomForest)
+```
+
+# Model 1: Random Forest with all pre-selected variables
+```{r}
+# import data
+df <- read.csv('df_recode_final_1127', sep = "|")
+
+# only keep data on or after 1980
+df1 <- df %>% filter(year >= 1980)
+
+# omit na
+df1_na_omit <- na.omit(df1)
+
+# set seed
+set.seed(1)
+
+# create training and testing data
+inTrain <- createDataPartition(y = df1_na_omit$geek_rating,
+                               p=0.8)$Resample
+train_set <- slice(df1_na_omit, inTrain) 
+test_set <- slice(df1_na_omit, -inTrain)
+```
+
+```{r}
+# select needed columns
+train_set_select <- train_set[, c(5:10, 11, 15, 20:110)]
+
+# fit the random forest model
+fit <- randomForest(avg_rating ~  ., 
+      data = train_set_select,
+      ntree = 500)
+
+# create data frame for plotting feature importance
+impt <- as.data.frame(importance(fit))
+impt$variable <- names(train_set_select[, -11])
+impt <- transform(impt, variable = reorder(variable, IncNodePurity))
+
+# plot feature importance
+impt %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
+  ggplot() +
+  geom_bar(aes(y = IncNodePurity, x = variable, col = IncNodePurity), stat = 'identity') + 
+  coord_flip() +
+  ylab("Feature Importance") + 
+  xlab("Feature") +
+  ggtitle("Board Game Features Ranked by Importance") +
+  theme(axis.text.y = element_text(size=4))
+
+# make predictions on test set
+predictions <- predict(fit, test_set)
+
+# calculate RMSE
+RMSE <- sqrt(sum((predictions - test_set$avg_rating)^2)/length(predictions))
+print(RMSE)
+```
+
+# Model 2: Random Forest with Top 20 Most Important Features
+```{r}
+# select top 20 most important features
+impt_feature <- impt %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>% 
+  head(20) %>%
+  select(variable)
+impt_feature <- as.character(as.vector(impt_feature$variable))
+
+# create a new training set for new model; remove one of the variables if two or more variables are highly correlated
+train_set1 <- train_set[names(train_set) %in% impt_feature] %>%
+  select(-max_players, -avg_time, -cate_mintime)
+
+# train the new model
+fit <- randomForest(avg_rating ~  ., 
+      data = train_set1,
+      ntree = 500)
+
+# make predictions
+predictions <- predict(fit, test_set)
+
+# calculate new RMSE
+RMSE <- sqrt(sum((predictions - test_set$avg_rating)^2)/length(predictions))
+print(RMSE)
+
+# plot feature importance
+impt <- as.data.frame(importance(fit))
+impt$variable <- names(train_set1[, -5])
+impt <- transform(impt, variable = reorder(variable, IncNodePurity))
+impt %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
+  ggplot() +
+  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') + 
+  coord_flip() +
+  ylab("Feature Importance") + 
+  xlab("Feature") +
+  ggtitle("Board Game Features Ranked by Importance")
+```
+
+We see that even though model 2 only has 20 of the variables that model 1 has, its RMSE is only slightly worse than that of model 1, so in practice, model 2 might be better as it is simpler but performs almost equally well as model 1.
