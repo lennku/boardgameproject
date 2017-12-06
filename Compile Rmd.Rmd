@@ -1,0 +1,300 @@
+---
+title: "Compile 260 project"
+output: html_document
+---
+
+# put all library above coding
+```{r}
+library(dplyr)
+library(readr)
+library(tidyr)
+library(caret)
+library(ggplot2)
+
+```
+
+
+
+# 4. Data
+### Find all cells with value = 0 and cells with values not making sense. Search the original website to find information and overwrite them. Also recoding some continuos variables to categorical.
+```{r}
+game <- read.csv(file = file.choose())
+
+### Overwriting non-sense cells
+# min_players
+game$min_players[1616] <- 1; game$min_players[1962] <- 1; game$min_players[2273] <- 1 
+game$min_players[2408] <- 1; game$min_players[2693] <- 1; game$min_players[3332] <- 1 
+game$min_players[3850] <- 1; game$min_players[3902] <- 1; game$min_players[4145] <- 1 
+game$min_players[4247] <- 1; game$min_players[4311] <- 1; game$min_players[4442] <- 1 
+game$min_players[4480] <- 1; game$min_players[4815] <- 1 
+
+# max_players
+game$max_players[1616] <- NA; game$max_players[1962] <- NA; game$max_players[2273] <- NA
+game$max_players[2408] <- NA; game$max_players[2687] <- 2; game$max_players[2739] <- 4
+game$max_players[2818] <- 2; game$max_players[3332] <- 1; game$max_players[3356] <- 4
+game$max_players[3570] <- 2; game$max_players[3724] <- 2; game$max_players[3875] <- 2
+game$max_players[3902] <- NA; game$max_players[4016] <- 2; game$max_players[4145] <- NA
+game$max_players[4241] <- 2; game$max_players[4354] <- 2; game$max_players[4437] <- 2
+game$max_players[4442] <- NA; game$max_players[4480] <- NA; game$max_players[4504] <- 2
+game$max_players[4528] <- 2; game$max_players[4540] <- 2; game$max_players[4795] <- 2
+game$max_players[4815] <- NA; game$max_players[4988] <- 2
+
+# weight
+game$weight[1477] <- NA; game$weight[4381] <- NA; game$weight[4521] <- NA
+
+# Yanying's cleaning code
+
+
+
+
+
+
+
+
+
+
+
+
+### Recode some variables
+# recode players
+game$single_player = 0
+game$single_player[game$min_players == 1] = 1
+game$multi_player = 0
+game$multi_player[game$min_players > 1 & game$max_players <= 4] = 1
+game$party_player = 0
+game$party_player[game$max_players > 4] = 1
+# recode min_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$min_time, na.rm = T) 
+game$cate_mintime = 0
+game$cate_mintime[game$min_time >= 30 & game$min_time <= 90] = 1
+game$cate_mintime[game$min_time > 90] = 2
+# recode avg_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$avg_time, na.rm = T)
+game$cate_avgtime = 0
+game$cate_avgtime[game$avg_time >= 30 & game$avg_time <= 120] = 1
+game$cate_avgtime[game$avg_time > 120] = 2
+# recode weight
+# 0 = easy, 1 = medium, 2 = hard
+quantile(game$weight, na.rm = T)
+game$cate_weight = 0
+game$cate_weight[game$weight >= 1.73885 & game$weight <= 2.8889] = 1
+game$cate_weight[game$weight > 2.8889] = 2
+
+# Yanying's recoding variable codes
+
+
+
+
+
+
+
+
+
+# write final cleaned csv and import csv
+
+
+
+
+
+```
+
+
+
+# 5. Exploratory Data Analysis
+### Description ???????
+
+```{r}
+# Geek rating vs Average rating
+
+
+
+
+
+# Mean Geek Rating and Mean Average Rating by Category/Theme of Games
+
+
+
+
+
+# Average Rating vs Age
+
+
+
+
+
+
+
+# Top 10 Ranked Games for each Age Group
+
+
+
+
+
+
+# Top 10 Ranked Game Mechanics for each Age Group
+
+
+
+
+
+
+# Top 10 Ranked Game Categories for each Age Group
+
+
+
+
+
+
+# Top 10 Ranked Games for single-player, multiplayer, and party games
+
+
+
+
+
+
+# Top 10 Ranked Game Mechanics for each Player Group
+
+
+
+
+
+
+# Top 10 Ranked Game Categories for each Player Group
+
+
+
+
+
+# The appropriate game difficulty for a board game
+
+
+
+
+
+
+
+# Beta Coefficients of Game Categories  (linear model with categories variable only)
+
+
+
+
+
+
+# Beta Coefficients of Game Mechanics (linear model with mechanics variable only)
+
+
+
+
+
+
+# Change in Rating Over the Years
+
+
+
+
+
+
+# Change in Game Difficulty Over the Years
+
+
+
+
+
+
+# Change in Game Popularity Over the Years 
+
+
+
+
+
+
+# Change in Game Mechanics and Themes Over the Years
+
+
+
+
+
+
+
+```
+
+
+
+# 6. Machine Learning
+### Four machine learning methods are used, including linear regression, kth nearest neighbors, random forest, and support vector machine.
+
+```{r}
+### linear regression
+
+
+
+
+
+
+
+### kth nearest neighbors
+
+
+
+
+
+
+
+
+### random forest
+
+
+
+
+
+
+### support vector machine
+g1 <- game[, -c(2:4, 14, 16, 18:19, 77)] #4750  152
+g <- drop_na(g1) # 4666  152
+
+# Spliting data into training and test set. 
+inTrain <- createDataPartition(y = g$avg_rating, p=0.8)$Resample
+train_set <- slice(g1, inTrain) 
+test_set <- slice(g, -inTrain)
+
+control <- trainControl(method = 'cv', number = 20)
+svmFit <- train(avg_rating ~.,
+             data = train_set,
+             method = "svmLinear",
+             na.action=na.exclude,
+             trControl = control,
+             preProcess = c("center", "scale"),
+             tuneLength = 10)
+svmFit
+svmPredict <- predict(svmFit,newdata = test_set) 
+
+#plot actual vs prediction
+data <- data.frame(cbind(svmPredict, test_set$avg_rating))
+names(data) <- c('svmPredict','avg_rating')
+data %>% ggplot(aes(avg_rating, svmPredict)) +
+  geom_point(color =  'hotpink2') +
+  xlim(c(6,8)) +
+  ylim(c(6,8)) +
+  xlab('Actual average_rating') +
+  ylab('SVM_prediction')
+```
+
+
+
+# 7. Final Analysis
+
+
+
+
+
+
+
+
+
+
+
+
+
+
