@@ -1,65 +1,648 @@
-----
-title: "260Project"
-output: html_document
 ---
+title: "What Makes a Board Game Good?"
+author: "Shimin Bi, Shi Chen, Yanying Qiu, Melissa Zhao"
+date: "Dec 6, 2017"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    df_print: paged
+    number_sections: true
+geometry: margin=1in
+fontsize: 12pt
+---
+\newcommand{\noin}{\noindent}    
+\newcommand{\Var}{\text{Var}}    
+\newcommand{\Cov}{\text{Cov}}    
+\newcommand{\bs}{\boldsymbol}
+\newcommand{\mb}{\mathbf}
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+\allowdisplaybreaks
 
-```{r}
+\definecolor{myblue}{RGB}{0,128,255}
+\newenvironment{answer}{\par\color{myblue}}{\par}
+
+# Overview and Motivation
+## Background
+We all love Settlers of Catan, but what is it about Catan that makes it so addictive? There are many different components of a board game that give it a lot of variations. Different board games can have various maximum or minimum number of players, varying length of play time, different themes, mechanisms, designers or even different difficulty! We are curious to find out which of these attributes actually make a board game a good one, measured by player ratings. With data collected from boardgamegeek.com, we have player ratings on thousands of board games and their features. We are interested to do some exploratory analysis on the features and potentially build models to predict which board games are more likely to be loved by players.
+
+## Objectives
+\begin{itemize}
+  \item Investigate the possible traits of high-rating board games using ggplot2 package in R.
+  \item Build models to predict the success of a new board game and find important features of the successful games (defined by high average player rating).
+  \item Recommend board games to players based on certain specified criteria or other games that they love.
+\end{itemize}
+
+# Initial Questions
+## Initial Questions
+## New Questions 
+## Further Thoughts
+
+```{r, include=FALSE}
 library(ggplot2)
 library(dslabs)
 library(tidyverse)
 library(dplyr)
-ds_theme_set()
-
-data <- read.csv(file = file.choose()) #4999   20
-names(data)
-summary(data)
+library(readr)
+library(tidyr)
+library(caret)
+library(lazyeval)
+library(randomForest)
+library(proxy)
 ```
 
-1.	Model via stepwise elimination the best predictors of a good board game (based on game rating)
-2.	Compare if model differs for avg rating vs geek rating
-3.	Explore the distribution of our covariates in this dataset
-4.	Explore any interesting correlation between the covariates
-5.	Test if we can accurately predict the rating of board games based on our model (https://boardgamegeek.com/browse/boardgame)
-6.	Play the best/worst game ourselves to see if we agree :P (maybe)
-7.	Design our own game based on findings (maybe)
-
-To do:
-1. Clean up dataset (for mechanics, designer, category) and hot-code (missing values or outliers) - Shimin, Yanying
-      avg_time, other outliers - Yanying
-      Min_player, max_player, year, weight - Shimin
-2. EDA to see which board games are most highly rated and which categories / combination of mechanics have the           highest rating & Descriptive analysis of covariates (plots) - Chen, Melissa
-3. Predictive model (predict avg rating) - Melissa, Chen, Shimin
-4. Test set, web scraping (price, rating, rank) to see if we can obtain a test set of new games outside of given         dataset - Melissa, Yanying, Chen
-5. Boardgame recommender based on past games played or features wanted (Euclidean distance) - Shimin, Yanying
-6. Website design (use templates) - All
-7. Screencast - All
-
-## Data cleaning
+# Data
+## Data Source
+## Data Cleaning
+### Replacing Wrong Values
+We found several variables that need to be checked and replaced with appropriate values, including
+\begin{itemize}
+  \item min_players
+  \item max_players
+  \item weight
+  \item avg_time
+  \item min_time
+  \item max_time
+  \item year
+\end{itemize}
+Find all cells with value = 0 and cells with values not making sense. Search the original website to find information and overwrite them. Also recoding some continuos variables to categorical.
 ```{r}
+game <- read.csv("bgg_data.csv")
 
+### Overwriting non-sense cells
+# min_players
+game$min_players[1616] <- 1; game$min_players[1962] <- 1; game$min_players[2273] <- 1 
+game$min_players[2408] <- 1; game$min_players[2693] <- 1; game$min_players[3332] <- 1 
+game$min_players[3850] <- 1; game$min_players[3902] <- 1; game$min_players[4145] <- 1 
+game$min_players[4247] <- 1; game$min_players[4311] <- 1; game$min_players[4442] <- 1 
+game$min_players[4480] <- 1; game$min_players[4815] <- 1 
+
+# max_players
+game$max_players[1616] <- NA; game$max_players[1962] <- NA; game$max_players[2273] <- NA
+game$max_players[2408] <- NA; game$max_players[2687] <- 2; game$max_players[2739] <- 4
+game$max_players[2818] <- 2; game$max_players[3332] <- 1; game$max_players[3356] <- 4
+game$max_players[3570] <- 2; game$max_players[3724] <- 2; game$max_players[3875] <- 2
+game$max_players[3902] <- NA; game$max_players[4016] <- 2; game$max_players[4145] <- NA
+game$max_players[4241] <- 2; game$max_players[4354] <- 2; game$max_players[4437] <- 2
+game$max_players[4442] <- NA; game$max_players[4480] <- NA; game$max_players[4504] <- 2
+game$max_players[4528] <- 2; game$max_players[4540] <- 2; game$max_players[4795] <- 2
+game$max_players[4815] <- NA; game$max_players[4988] <- 2
+
+# weight
+game$weight[1477] <- NA; game$weight[4381] <- NA; game$weight[4521] <- NA
+
+# min_time, avg_time and max_time are cleaned in excel and re-imported back
+game <- read.csv("bgg_clean_dat.csv", sep = " ", header = T)
 ```
 
-## EDA
+### Recoding
+\begin{itemize}
+  \item min_players - to categories single player, multi-player or party game
+  \item max_players - to categories single player, multi-player or party game
+  \item min_time - to categories 0 (short), 1(medium), 2(long)
+  \item avg_time - to categories 0 (short), 1(medium), 2(long)
+  \item weight - to categories 0(easy), 1(medium), 2(hard)
+\end{itemize}
 ```{r}
+# recode players
+game$single_player = 0
+game$single_player[game$min_players == 1] = 1
+game$multi_player = 0
+game$multi_player[game$min_players > 1 & game$max_players <= 4] = 1
+game$party_player = 0
+game$party_player[game$max_players > 4] = 1
+# recode min_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$min_time, na.rm = T) 
+game$cate_mintime = 0
+game$cate_mintime[game$min_time >= 30 & game$min_time <= 90] = 1
+game$cate_mintime[game$min_time > 90] = 2
+# recode avg_time
+# 0 = short,  1 = medium, 2 = long
+quantile(game$avg_time, na.rm = T)
+game$cate_avgtime = 0
+game$cate_avgtime[game$avg_time >= 30 & game$avg_time <= 120] = 1
+game$cate_avgtime[game$avg_time > 120] = 2
+# recode weight
+# 0 = easy, 1 = medium, 2 = hard
+quantile(game$weight, na.rm = T)
+game$cate_weight = 0
+game$cate_weight[game$weight >= 1.73885 & game$weight <= 2.8889] = 1
+game$cate_weight[game$weight > 2.8889] = 2
 
+# write final cleaned csv and import csv
+write.table(game, "bgg_final_clean_dat.csv", sep = "|")
+game <- read.csv("bgg_final_clean_dat.csv", sep = "|", header = T)
 ```
 
-## Predictive model
+### Hot-Coding
+For each board game, it can have multiple mechanics or categories. We split the mechanics and categories into separate columns with each boradgame having 0 or 1 for each of the mechanic and category.
 ```{r}
+# recode mechanic
+# find unique mechanics
+mech_str <- paste(as.character(game$mechanic), collapse = ", ")
+mech_unique <- unique(strsplit(mech_str, ", ")[[1]])
+mech_unique_lower <- unlist(lapply(mech_unique, function(x) {paste(strsplit(tolower(x), " ")[[1]], collapse = "_")}))
 
+# create one empty column for each unique mechanic
+mechanic_col <- data.frame(matrix(0, ncol = length(mech_unique_lower), nrow = dim(game)[1]))
+colnames(mechanic_col) <- mech_unique_lower
+
+# fill in the values of the mechanic columns
+fill_mech_col <- function(df, mechanic_col) {
+  for (i in 1:dim(df)[1]) {
+    mech_col_num <- which(mech_unique %in% c(strsplit(as.character(df$mechanic[i]), ", ")[[1]]))
+    for (j in mech_col_num) {
+      mechanic_col[i, j] <- 1
+    }
+  }
+  return(mechanic_col)
+}
+mechanic_col <- fill_mech_col(game, mechanic_col)
+
+# recode categories
+# find unique categories
+cat_str <- paste(as.character(game$category), collapse = ", ")
+cat_unique <- unique(strsplit(cat_str, ", ")[[1]])
+cat_unique_lower <- unlist(lapply(cat_unique, function(x) {paste(strsplit(tolower(x), " ")[[1]], collapse = "_")}))
+
+# create one empty column for each unique category
+cat_col <- data.frame(matrix(0, ncol = length(cat_unique_lower), nrow = dim(game)[1]))
+colnames(cat_col) <- cat_unique_lower
+
+# fill in the values of the category columns
+fill_cat_col <- function(df, cat_col) {
+  for (i in 1:dim(df)[1]) {
+    cat_col_num <- which(cat_unique %in% c(strsplit(as.character(df$category[i]), ", ")[[1]]))
+    for (j in cat_col_num) {
+      cat_col[i, j] <- 1
+    }
+  }
+  return(cat_col)
+}
+
+cat_col <- fill_cat_col(game, cat_col)
+
+df_new <- cbind(game, mechanic_col)
+write.table(df_new, 'df_w_mechanic', sep = "|")
+df_new2 <- cbind(game, cat_col)
+write.table(df_new2, 'df_w_cat', sep = "|")
+
+df_w_mechanic <- read.csv('df_w_mechanic', sep = "|")
+df_w_cat <- read.csv('df_w_cat', sep = "|")
+drops <- c('none')
+df_mech_new <- df_w_mechanic[ , !(names(df_w_mechanic) %in% drops)]
+df_mech_new$memory_mechanic <- df_mech_new$memory
+df_mech_final <- df_mech_new[ , !(names(df_mech_new) %in% 'memory')]
+df_cat_new <- df_w_cat[ , !(names(df_w_cat) %in% drops)]
+df_cat_final <- df_cat_new[, 27:109]
+df_recode_final <- cbind(df_mech_final, df_cat_final)
+write.table(df_recode_final, 'df_recode_final_1127', sep = "|")
 ```
 
-## Generation of test set via webscrapping
+
+# Exploratory Data Analysis
 ```{r}
-
+game <- read.csv("df_recode_final_1127", sep = "|")
 ```
+## Summary Plots
 
-## Boardgame recommender
 ```{r}
+# Geek rating vs Average rating
 
+
+
+
+
+# Mean Geek Rating and Mean Average Rating by Category/Theme of Games
+
+
+
+
+
+# Average Rating vs Age
+
+
+
+
+
+
+
+# Top 10 Ranked Games for each Age Group
+
+
+
+
+
+
+# Top 10 Ranked Game Mechanics for each Age Group
+
+
+
+
+
+
+# Top 10 Ranked Game Categories for each Age Group
+
+
+
+
+
+
+# Top 10 Ranked Games for single-player, multiplayer, and party games
+
+
+
+
+
+
+# Top 10 Ranked Game Mechanics for each Player Group
+
+
+
+
+
+
+# Top 10 Ranked Game Categories for each Player Group
+
+
+
+
+
+# The appropriate game difficulty for a board game
+
+
+
+
+
+
+
+# Beta Coefficients of Game Categories  (linear model with categories variable only)
+
+
+
+
+
+
+# Beta Coefficients of Game Mechanics (linear model with mechanics variable only)
+
+
+
+
+
+
+# Change in Rating Over the Years
+
+
+
+
+
+
+# Change in Game Difficulty Over the Years
+
+
+
+
+
+
+# Change in Game Popularity Over the Years 
+
+
+
+
+
+
+# Change in Game Mechanics and Themes Over the Years
+# Change in game mechanics
+df_new1 <- game %>% filter(year >= 1980)
+df_new1$year_group <- cut(df_new1$year, breaks = c(1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2018), include.lowest = TRUE)
+dice_rolling <- df_new1 %>%
+    group_by(year_group) %>%
+    summarize(percent = sum(dice_rolling, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "dice_rolling")
+hand_management <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(hand_management, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "hand_management")
+variable_player_powers <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(variable_player_powers, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "variable_player_powers")
+set_collection <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(set_collection, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "set_collection")
+area_control_._area_influence <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(area_control_._area_influence, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "area_control_._area_influence")
+card_drafting <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(card_drafting, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "card_drafting")
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2")
+mechanic_by_year <- as.data.frame(bind_rows(dice_rolling, hand_management, variable_player_powers, set_collection, area_control_._area_influence, card_drafting))
+ggplot() + 
+  geom_point(aes(x = dice_rolling$year_group, y = dice_rolling$percent, col = 'Dice Rolling')) + 
+  geom_line(aes(x = dice_rolling$year_group, y = dice_rolling$percent, group = 1, col = 'Dice Rolling')) +
+  geom_point(aes(x = hand_management$year_group, y = hand_management$percent, col = 'Hand Management')) + 
+  geom_line(aes(x = hand_management$year_group, y = hand_management$percent, group = 1, col = 'Hand Management')) + 
+  geom_point(aes(x = variable_player_powers$year_group, y = variable_player_powers$percent, col = 'Variable Player Powers')) +
+  geom_line(aes(x = variable_player_powers$year_group, y = variable_player_powers$percent, group = 1, col = 'Variable Player Powers')) + 
+  geom_point(aes(x = set_collection$year_group, y = set_collection$percent, col = 'Set Collection')) + 
+  geom_line(aes(x = set_collection$year_group, y = set_collection$percent, group = 1, col = 'Set Collection')) +
+  geom_point(aes(x = area_control_._area_influence$year_group, y = area_control_._area_influence$percent, col = 'Area Control/Area Influence')) + 
+  geom_line(aes(x = `area_control_._area_influence`$year_group, y = area_control_._area_influence$percent, group = 1, col = 'Area Control/Area Influence')) +
+  geom_point(aes(x = card_drafting$year_group, y = card_drafting$percent, col = 'Card Drafting')) + 
+  geom_line(aes(x = card_drafting$year_group, y = card_drafting$percent, group = 1, col = 'Card Drafting')) +
+  scale_colour_manual("", 
+                      breaks = c("Dice Rolling", "Hand Management", "Variable Player Powers", "Set Collection", "Area Control/Area Influence", "Card Drafting"),
+                      values = cbPalette[1:6]) +
+  scale_x_discrete(breaks = dice_rolling$year_group, 
+                   labels = seq(1980, 2015, 5)) +
+  xlab("Year") +
+  ylab("Percentage of games") +
+  ggtitle("Evolution of Game Mechanics 1980 - 2018") +
+  theme(legend.position="bottom")
+
+# change in game categories
+card_game <- df_new1 %>%
+    group_by(year_group) %>%
+    summarize(percent = sum(card_game, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "card_game")
+wargame <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(wargame, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "wargame")
+fantasy <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(fantasy, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "fantasy")
+economic <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(economic, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "economic")
+fighting <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(fighting, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "fighting")
+science_fiction <- df_new1 %>%
+    group_by(year_group) %>%
+    summarise(percent = sum(science_fiction, na.rm = TRUE) / n()) %>%
+    mutate(mechanic = "science_fiction")
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2")
+ggplot() + 
+  geom_point(aes(x = card_game$year_group, y = card_game$percent, col = 'Card Game')) + 
+  geom_line(aes(x = card_game$year_group, y = card_game$percent, group = 1, col = 'Card Game')) +
+  geom_point(aes(x = wargame$year_group, y = wargame$percent, col = 'War Game')) + 
+  geom_line(aes(x = wargame$year_group, y = wargame$percent, group = 1, col = 'War Game')) + 
+  geom_point(aes(x = fantasy$year_group, y = fantasy$percent, col = 'Fantasy')) +
+  geom_line(aes(x = fantasy$year_group, y = fantasy$percent, group = 1, col = 'Fantasy')) + 
+  geom_point(aes(x = economic$year_group, y = economic$percent, col = 'Economic')) + 
+  geom_line(aes(x = economic$year_group, y = economic$percent, group = 1, col = 'Economic')) +
+  geom_point(aes(x = fighting$year_group, y = fighting$percent, col = 'Fighting')) + 
+  geom_line(aes(x = fighting$year_group, y = fighting$percent, group = 1, col = 'Fighting')) +
+  geom_point(aes(x = science_fiction$year_group, y = science_fiction$percent, col = 'Science Fiction')) + 
+  geom_line(aes(x = science_fiction$year_group, y = science_fiction$percent, group = 1, col = 'Science Fiction')) +
+  scale_colour_manual("", 
+                      breaks = c("Card Game", "War Game", "Fantasy", "Economic", "Fighting", "Science Fiction"),
+                      values = cbPalette[1:6]) +
+  scale_x_discrete(breaks = dice_rolling$year_group, 
+                   labels = seq(1980, 2015, 5)) +
+  xlab("Year") +
+  ylab("Percentage of games") +
+  ggtitle("Evolution of Game Categories 1980 - 2018") + 
+  theme(legend.position="bottom")
 ```
 
+# Predictions with Machine Learning
+## Objective
+We want to predict the success of a board game which is measured by its **average rating** on boardgamegeek.com.
+
+## Methods
+We tried four different machine learning methods, including linear regression, kth nearest neighbors, random forest, and support vector machine.
+
+### Linear Regression
+### K-Nearest Neighbors
+### Random Forest
+```{r}
+# omit na
+df1_na_omit <- na.omit(game)
+
+# set seed
+set.seed(1)
+
+# create training and testing data
+inTrain <- createDataPartition(y = df1_na_omit$geek_rating,
+                               p=0.8)$Resample
+train_set <- slice(df1_na_omit, inTrain) 
+test_set <- slice(df1_na_omit, -inTrain)
+
+# select needed columns
+train_set_select <- train_set[, c(5:10, 11, 15, 20:110)]
+
+# run randomForest with all features
+fit <- randomForest(avg_rating ~  ., 
+      data = train_set_select,
+      ntree = 500)
+
+# plot feature importance
+impt <- as.data.frame(importance(fit))
+impt$variable <- names(train_set_select[, -7])
+impt <- transform(impt, variable = reorder(variable, IncNodePurity))
+impt %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
+  ggplot() +
+  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') + 
+  coord_flip() +
+  ylab("Feature Importance") + 
+  xlab("Feature") +
+  ggtitle("Board Game Features Ranked by Importance")
+```
+
+Top 20 Most Important Features
+```{r}
+# select top 20 most important features
+impt_feature <- impt %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>% 
+  head(20) %>%
+  select(variable)
+impt_feature <- as.character(as.vector(impt_feature$variable))
+
+impt_feature_df <- impt %>%
+  filter(variable %in% impt_feature)
+impt_feature_df %>% 
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
+  ggplot() +
+  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') + 
+  coord_flip() +
+  ylab("Feature Importance") + 
+  xlab("Feature") +
+  ggtitle("Board Game Features Ranked by Importance")
+```
+
+```{r}
+# fit the random forest model
+# change number of variables randomly sampled as candidates at each split
+RMSE_mtry <- c()
+for (m in 1:50) {
+  fit <- randomForest(avg_rating ~  ., 
+      data = train_set_select,
+      ntree = 100, 
+      mtry = m)
+  
+  # make predictions on test set
+  predictions <- predict(fit, test_set)
+
+  # calculate RMSE
+  RMSE <- sqrt(sum((predictions - test_set$avg_rating)^2)/length(predictions))
+  print(RMSE)
+  RMSE_mtry <- c(RMSE_mtry, RMSE)
+}
+
+which(RMSE_mtry == min(RMSE_mtry))
+
+ggplot() +
+  geom_line(aes(x = 1:50, y = RMSE_mtry)) + 
+  geom_point(aes(x = 1:50, y = RMSE_mtry)) +
+  ggtitle("Choose the Best Number of Variables to Include at Each Split") +
+  xlab("mtry") +
+  ylab("RMSE")
+
+# change number of trees to grow
+RMSE_ntree <- c()
+for (n in 1:15) {
+  fit <- randomForest(avg_rating ~  ., 
+      data = train_set_select,
+      ntree = n * 50, 
+      mtry = 30)
+  
+  # make predictions on test set
+  predictions <- predict(fit, test_set)
+
+  # calculate RMSE
+  RMSE <- sqrt(sum((predictions - test_set$avg_rating)^2)/length(predictions))
+  print(RMSE)
+  RMSE_ntree <- c(RMSE_ntree, RMSE)
+}
+
+ggplot() +
+  geom_line(aes(x = seq(50, 750, 50), y = RMSE_ntree)) + 
+  geom_point(aes(x = seq(50, 750, 50), y = RMSE_ntree)) +
+  ggtitle("Choose the Best Number of Trees to Grow") +
+  xlab("ntree") +
+  ylab("RMSE")
+
+which(RMSE_ntree == min(RMSE_ntree))
+min(RMSE_ntree)
+```
+
+Fit a model using our best mtry and ntree.
+```{r}
+# best model
+fit <- randomForest(avg_rating ~  ., 
+      data = train_set_select,
+      ntree = min(RMSE_ntree), 
+      mtry = min(RMSE_mtry))
+
+# make predictions
+predictions <- predict(fit, test_set)
+
+# calculate new RMSE
+RMSE <- sqrt(sum((predictions - test_set$avg_rating)^2)/length(predictions))
+print(RMSE)
+
+# R^2
+R_2 <- 1 - sum((test_set$avg_rating - predictions)^2) / sum((test_set$avg_rating - mean(test_set$avg_rating))^2)
+R_2
+
+# plot
+ggplot() +
+  geom_point(aes(x = test_set$avg_rating, y = predictions), col = "pink") + 
+  ggtitle("Predictions vs True Average Ratings") +
+  xlab("True Average Rating") +
+  ylab("Predicted Average Rating")
+```
+
+### Support Vector Machines
+```{r}
+### support vector machine
+g1 <- game[, -c(2:4, 14, 16, 18:19, 77)] #4750  152
+g <- drop_na(g1) # 4666  152
+
+# Spliting data into training and test set. 
+inTrain <- createDataPartition(y = g$avg_rating, p=0.8)$Resample
+train_set <- slice(g1, inTrain) 
+test_set <- slice(g, -inTrain)
+
+#control <- trainControl(method = 'cv', number = 20)
+svmFit <- train(avg_rating ~.,
+             data = train_set,
+             method = "svmLinear",
+             na.action=na.exclude,
+             trControl = control,
+             preProcess = c("center", "scale"),
+             tuneLength = 10)
+svmFit
+svmPredict <- predict(svmFit,newdata = test_set) 
+
+#plot actual vs prediction
+data <- data.frame(cbind(svmPredict, test_set$avg_rating))
+names(data) <- c('svmPredict','avg_rating')
+data %>% ggplot(aes(avg_rating, svmPredict)) +
+  geom_point(color =  'hotpink2') +
+  xlim(c(6,8)) +
+  ylim(c(6,8)) +
+  xlab('Actual average_rating') +
+  ylab('SVM_prediction')
+```
+
+# Board Game Recommender
+We also built a simple board game recommender where a user can input their favorite board game and we will make recommendations of several board games that we think they might like, based on how similar the games are to their favorite game.
+```{r}
+# omit na
+df1_na_omit <- na.omit(game)
+
+# drop columns not wanted
+drops <- c("rank", "bgg_url", "game_id", "image_url", "mechanic", "category", "designer")
+df_rec <- df1_na_omit[ , !(names(df1_na_omit) %in% drops)]
+
+# function to get similarity between two boardgames using Euclidean distance
+get_most_simi <- function(game_name, df) {
+  # get only the mechanics and category columns
+  df_new <- df[, c(1, 20:153)]
+  
+  # create a vector of the features of the user's favorite game
+  game_played <- as.numeric(as.vector(df_new[df_new$names == game_name, ]))[-1]
+  
+  # calculate Euclidean distance between user's favorite game and every other game in our data
+  score <- numeric(0)
+  for (i in 1:dim(df_new)[1]) {
+    score <- c(score, 
+               dist(list(game_played, as.numeric(df_new[i, -1])), method = "Euclidean"))
+  }
+  names(score) <- df_new[, 1]
+
+  games <- names(score)
+  score <- as.data.frame(score)
+  score$game <- games
+  score <- score[order(score$score), ]
+  similar_games <- score %>% 
+    filter(score < quantile(score, 0.02) & 
+           score != 0)
+  game_list <- df %>%
+    filter(names %in% similar_games$game)
+  recommendations <- game_list[order(game_list$geek_rating, decreasing = TRUE), ] %>%
+    select(names) %>%
+    head(10)
+  return(recommendations)
+}
+
+# example
+# input: Kingdom Builder
+get_most_simi("Kingdom Builder", df_rec)
+```
+
+# Final Analysis
