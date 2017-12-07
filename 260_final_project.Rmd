@@ -600,20 +600,118 @@ grid.newpage()
 grid.draw(rbind(ggplotGrob(pc1), ggplotGrob(pc2),  ggplotGrob(pc3),size = "last"))
 ```
 
+# avg rating vs geek rating across game ranks by categories
+```{r}
+#loading game without separation of mech and cate into indicator variables 
+game1 <- read.csv("bgg_final_clean_dat.csv", sep = "|", header = T)
+
+library(purrr)
+library(stringr)
+# Functions
+split_into_multiple <- function(column, pattern = ", ", into_prefix){
+  cols <- str_split_fixed(column, pattern, n = Inf)
+  cols[which(cols == "")] <- NA
+  cols <- as_tibble(cols)
+  m <- dim(cols)[2]
+  names(cols) <- paste(into_prefix, 1:m, sep = "_")
+  return(cols)
+}
+
+#Splitting 
+game1 <- game1 %>% bind_cols(split_into_multiple(game1$category,',','category')) %>%
+  bind_cols(split_into_multiple(game1$mechanic,',','mechanic'))
+
+#Cleaning
+game1 <- game1 %>% select(-category, -mechanic, -designer, -image_url)
+
+#Tidying
+tidygame <- game1 %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
+  gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
+
+tidygame$mechanics <- trimws(tidygame$mechanics)
+tidygame$categories <- trimws(tidygame$categories)
+
+#Categories vs ratings
+tidygame %>% 
+ group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%  
+  ggplot() +
+  geom_point(aes(reorder(categories, avgrank), avggeek, color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(categories, avgrating, color = 'avg_rating'), size = 0.5) + 
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
+  theme(axis.text=element_text(size=8, angle = 60, hjust =1)) +
+  ylab("Rating") +
+  xlab("Rank") +
+  ggtitle("Ratings by Categories") 
+```
+
+#avg rating vs geek rating across game ranks by mechanics
+```{r}
+#Mechanics vs ratings
+tidygame %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%
+  ggplot() +
+  geom_point(aes(reorder(mechanics, avgrank), avggeek, color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(mechanics, avgrating, color = 'avg_rating'), size = 0.5) +
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) + #adds legend
+  theme(axis.text=element_text(size=9, angle = 60, hjust = 1)) +
+  ylab("Rating") +
+  xlab("Rank") +
+  ggtitle("Ratings by Mechanics") 
+```
+
 
 # Beta Coefficients of Game Categories  (linear model with categories variable only)
+```{r}
 
+model1 <- lm(geek_rating ~ categories,data = tidygame)
+coeff <- as.data.frame(model1$coefficients)
+coeff$category <- as.factor(rownames(coeff))
+colnames(coeff) <- c("coef","covariates")
+confint_cat <- as.data.frame(confint(model1)) 
 
+coeff_cat <- coeff[,]
+coeff_cat$covariates <- gsub("categories", "", coeff_cat$covariates)
+head(coeff_cat)
 
+coeff_cat_error <- bind_cols(coeff_cat, confint_cat) 
+colnames(coeff_cat_error) <- c("coef", "covariates", "lower", "upper")
 
+ggplot(coeff_cat_error[-1,], aes( x=reorder(covariates, coef)))+
+  geom_errorbar(aes(x =reorder(covariates, coef), ymin = lower, ymax = upper), color = "grey70") +
+  geom_point(aes(y = coef), col = "#C1275C") +
+  coord_flip() +
+  labs(title = "Linear Model Coefficients for Category",y="Coefficients",x="Category")+
+  scale_fill_gradient2(low = "light grey", mid = "grey70",
+  high = "#C1275C", midpoint = 0.25) +
+  theme_light() +
+  guides(fill=guide_legend(title="Coefficient values")) +
+  theme(axis.text=element_text(size=6))
 
+```
 
 # Beta Coefficients of Game Mechanics (linear model with mechanics variable only)
+```{r}
+model2 <- lm(geek_rating ~ mechanics, data = tidygame)
+coeff <- as.data.frame(model2$coefficients)
+coeff$category <- as.factor(rownames(coeff))
+colnames(coeff) <- c("coef","covariates")
+confint_mech <- as.data.frame(confint(model2)) 
 
+coeff_mech <- coeff[,]
+coeff_mech$covariates <- gsub("mechanics", "", coeff_mech$covariates)
+coeff_mech_error <- bind_cols(coeff_mech, confint_mech) 
+colnames(coeff_mech_error) <- c("coef", "covariates", "lower", "upper")
 
-
-
-
+ggplot(coeff_mech_error[-1,], aes( x=reorder(covariates, coef)))+
+  geom_errorbar(aes(x =reorder(covariates, coef), ymin = lower, ymax = upper), color = "grey70") +
+  geom_point(aes(y = coef), col = "#C1275C") +
+  coord_flip() +
+  labs(title = "Linear Model Coefficients for Mechanics",y="Coefficients",x="Mechanics")+
+  scale_fill_gradient2(low = "light grey", mid = "grey70",
+  high = "#C1275C", midpoint = 0.25) +
+  theme_light() +
+  guides(fill=guide_legend(title="Coefficient values")) +
+  theme(axis.text=element_text(size=8))
+```
 
 # Change in Rating Over the Years
 
@@ -637,6 +735,7 @@ grid.draw(rbind(ggplotGrob(pc1), ggplotGrob(pc2),  ggplotGrob(pc3),size = "last"
 
 
 # Change in Game Mechanics and Themes Over the Years
+```{r}
 # Change in game mechanics
 df_new1 <- game %>% filter(year >= 1980)
 df_new1$year_group <- cut(df_new1$year, breaks = c(1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2018), include.lowest = TRUE)
@@ -739,7 +838,7 @@ ggplot() +
   ylab("Percentage of games") +
   ggtitle("Evolution of Game Categories 1980 - 2018") + 
   theme(legend.position="bottom")
-
+```
 
 # Predictions with Machine Learning
 ## Objective
@@ -748,10 +847,9 @@ We want to predict the success of a board game which is measured by its **averag
 ## Methods
 We tried four different machine learning methods, including linear regression, kth nearest neighbors, random forest, and support vector machine.
 
-### Linear Regression
-
-### K-Nearest Neighbors
+###Building train and test set
 ```{r}
+library(caret)
 set.seed(1)
 game <- read.csv("df_recode_final_1127",  header =T, sep = "|") 
 
@@ -767,6 +865,65 @@ train_set <- slice(g1, inTrain)
 test_set <- slice(g, -inTrain)
 
 control <- trainControl(method = 'cv', number = 20)
+```
+
+
+### Linear Regression
+```{r}
+### Finding the best covariates to test with ML lm method 
+model <- train(avg_rating ~ .,
+             data = train_set,
+             method = "lm",
+             na.action=na.exclude,
+             trControl = control,
+             metric = "RMSE")
+summary(model)
+
+#Removing NAs
+tidygame <- train_set %>% select(avg_rating, year, weight , single_player , multi_player , hand_management , point_to_point_movement , set_collection , variable_player_powers , card_drafting , area_control_._area_influence , campaign_._battle_card_driven , dice_rolling , simultaneous_action_selection , route.network_building , variable_phase_order , grid_movement , storytelling , worker_placement , deck_._pool_building , player_elimination , press_your_luck , hex.and.counter , stock_holding , betting.wagering , line_drawing , rock.paper.scissors , environmental , card_game , economic , wargame , fighting , city_building , farming , murder.mystery) %>% na.omit(.)
+
+#Stepwise selection
+lm.null <- lm(avg_rating ~ 1, data = train_set)
+lm.full <- lm(avg_rating ~ year + weight + single_player + multi_player + hand_management + point_to_point_movement + set_collection + variable_player_powers + card_drafting + area_control_._area_influence + campaign_._battle_card_driven + dice_rolling + simultaneous_action_selection + route.network_building + variable_phase_order + grid_movement + storytelling + worker_placement + deck_._pool_building + player_elimination + press_your_luck + hex.and.counter + stock_holding + betting.wagering + line_drawing + rock.paper.scissors + environmental + card_game + economic + wargame + fighting + city_building + farming + murder.mystery, data = train_set)
+mod1 <- step(lm.null, direction = "both", scope = list(lower = lm.null, upper = lm.full))
+
+#finalized linear model 
+mod1 <- lm(avg_rating ~ weight + year + wargame + single_player + 
+    deck_._pool_building + storytelling + grid_movement + hex.and.counter + 
+    campaign_._battle_card_driven + multi_player + city_building + 
+    rock.paper.scissors + simultaneous_action_selection + area_control_._area_influence + 
+    line_drawing + betting.wagering + route.network_building + 
+    press_your_luck + murder.mystery + fighting + card_drafting + 
+    stock_holding + variable_player_powers + card_game + point_to_point_movement, 
+    data = train_set)
+summary(mod1)
+
+#predictions vs actual rating
+predictions <- predict(mod1, test_set)
+cor(predictions, test_set$avg_rating)
+
+#graph of predictions vs actual rating
+data.frame(test_set$avg_rating, predictions) %>% ggplot(aes(test_set$avg_rating, predictions)) +
+  geom_point(color = "pink") + 
+  stat_ellipse(color = "pink") +
+  xlab("Actual Average Rating") +
+  ylab("Predicted Average Rating") +
+  ggtitle("Actual vs Predicted Average Rating")
+
+#graph of linear model coefficients by magnitude
+mod_coef <- data.frame(mod1$coeff) %>% mutate(variable = rownames(mod_coef))
+
+ggplot(mod_coef[-1,], aes( x=reorder(variable, mod1.coeff), y=mod1.coeff, fill=mod1.coeff))+
+  geom_bar(stat="identity") +
+  coord_flip() +
+  labs(title = "Final Linear Model Coefficients",y="Coefficients",x="Variable")+
+  scale_fill_gradient(low="grey50", high="grey50")+
+  theme_light() +
+  guides(fill=guide_legend(title="Coefficient values"))
+```
+
+### K-Nearest Neighbors
+```{r}
 knnFit <- train(avg_rating ~.,
              data = train_set,
              method = "knn",
@@ -802,7 +959,6 @@ data %>% ggplot(aes(avg_rating, knnPredict)) +
 ```{r}
 # omit na
 df1_na_omit <- na.omit(game)
-
 # set seed
 set.seed(1)
 
