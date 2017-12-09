@@ -35,7 +35,10 @@ get_most_simi <- function(game_name, df) {
   return(recommendations)
 }
 
-get_most_simi("sushi", game)
+#just testing here
+#get_most_simi("sushi", game)
+#output error:  Error in dist(list(game_played, as.numeric(df_new[i, -1])), method = "Euclidean") : 
+#invalid distance method 
 
 #shiny app
 library(shiny)
