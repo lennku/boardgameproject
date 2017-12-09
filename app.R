@@ -36,7 +36,7 @@ get_most_simi <- function(game_name, df) {
 }
 
 #just testing here
-#get_most_simi("sushi", game)
+#get_most_simi("Sushi Go!", game)
 #output error:  Error in dist(list(game_played, as.numeric(df_new[i, -1])), method = "Euclidean") : 
 #invalid distance method 
 
