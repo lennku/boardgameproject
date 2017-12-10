@@ -1,5 +1,5 @@
 ---
-title: "260_final"
+title: "Board Game Project Final Report"
 output: html_document
 ---
 
@@ -31,21 +31,39 @@ fontsize: 12pt
 \definecolor{myblue}{RGB}{0,128,255}
 \newenvironment{answer}{\par\color{myblue}}{\par}
 
-# Overview and Motivation
-## Background
+# Section 1. Overview and Motivation
+## 1.1 Background
 We all love Settlers of Catan, but what is it about Catan that makes it so addictive? There are many different components of a board game that give it a lot of variations. Different board games can have various maximum or minimum number of players, varying length of play time, different themes, mechanisms, designers or even different difficulty! We are curious to find out which of these attributes actually make a board game a good one, measured by player ratings. With data collected from boardgamegeek.com, we have player ratings on thousands of board games and their features. We are interested to do some exploratory analysis on the features and potentially build models to predict which board games are more likely to be loved by players.
 
-## Objectives
-\begin{itemize}
-  \item Investigate the possible traits of high-rating board games using ggplot2 package in R.
-  \item Build models to predict the success of a new board game and find important features of the successful games (defined by high average player rating).
-  \item Recommend board games to players based on certain specified criteria or other games that they love.
-\end{itemize}
+## 1.2 Objectives
+We identified the following objectives for our project:  
+1. Investigate the possible traits of high-rating board games using ggplot2 package in R.  
+2. Build models to predict the success of a new board game and find important features of the successful games (defined by high average player rating).  
+3. Recommend board games to players based on certain specified criteria or other games that they love.
 
-# Initial Questions
-## Initial Questions
-## New Questions 
-## Further Thoughts
+***
+
+
+
+# Section 2. Initial Questions
+## 2.1 Initial Questions
+The first question we asked was:  
+__What are the strongest predictors of a board game's success (in terms of average player rating)?__
+
+We began to find in our EDA that some general variables, such as rank or number of votes, although very predictive of rating, are not useful since they are not features of board games that board game manufacturers or players can control. 
+
+## 2.2 New Questions 
+Due to the above mentioned problem, our question then evolved to "**what are some useful predictors of a board game's success (in terms of rating)**?" We found that there were several categories in game **categories** and game **mechanics** that were predictive of rating, and zoned in our models to develop a predictive model based on these categorical variables and some general variables, such as weight (game complexity) and year.
+
+Other questions curious about include:  
+1. different stratifications in our dataset, such as games by age groups and single/multiplayer involvement.  
+2. How game preferences and characteristics changed over time (board game evolution).
+3. Whether different machine learning methods would help us predict ratings better, and compared their RMSEs. 
+4. If we could use the variables we've gathered in our dataset to build a good board game recommender using Euclidean distances between board game features. 
+
+***
+
+
 
 ```{r, include=FALSE}
 library(ggplot2)
@@ -58,22 +76,34 @@ library(caret)
 library(lazyeval)
 library(randomForest)
 library(proxy)
+library(knitr)
+library(RColorBrewer)
+library(purrr)
+library(stringr)
+library(grid)
 ```
 
-# Data
-## Data Source
-## Data Cleaning
-### Replacing Wrong Values
+# Section 3. Data
+## 3.1 Data Source
+Our board game data comes from a data set on Kaggle.com. The link to the data set is:  
+[link] (https://www.kaggle.com/mrpantherson/board-game-data/data)
+
+## 3.2 Data Cleaning & Processing
+Our data cleaning work involves 3 parts:  
+1. Replace Wrong Values  
+2. Recode Numerical Values to Categorical Values  
+3. Hot-code Mechanics and Category Columns  
+
+### 3.2.1 Replacing Wrong Values
 We found several variables that need to be checked and replaced with appropriate values, including
-\begin{itemize}
-  \item min_players
-  \item max_players
-  \item weight
-  \item avg_time
-  \item min_time
-  \item max_time
-  \item year
-\end{itemize}
+* min_players
+* max_players
+* weight
+* avg_time
+* min_time
+* max_time
+* year  
+
 Find all cells with value = 0 and cells with values not making sense. Search the original website to find information and overwrite them. Also recoding some continuos variables to categorical.
 ```{r}
 game <- read.csv("bgg_data.csv")
@@ -104,14 +134,14 @@ game$weight[1477] <- NA; game$weight[4381] <- NA; game$weight[4521] <- NA
 game <- read.csv("bgg_clean_dat.csv", sep = " ", header = T)
 ```
 
-### Recoding
-\begin{itemize}
-  \item min_players - to categories single player, multi-player or party game
-  \item max_players - to categories single player, multi-player or party game
-  \item min_time - to categories 0 (short), 1(medium), 2(long)
-  \item avg_time - to categories 0 (short), 1(medium), 2(long)
-  \item weight - to categories 0(easy), 1(medium), 2(hard)
-\end{itemize}
+### 3.2.2 Recoding
+We tried to recode the following 
+* min_players - to categories single player, multi-player or party game
+* max_players - to categories single player, multi-player or party game
+* min_time - to categories 0 (short), 1(medium), 2(long)
+* avg_time - to categories 0 (short), 1(medium), 2(long)
+* weight - to categories 0(easy), 1(medium), 2(hard)  
+
 ```{r}
 # recode players
 game$single_player = 0
@@ -144,7 +174,7 @@ write.table(game, "bgg_final_clean_dat.csv", sep = "|")
 game <- read.csv("bgg_final_clean_dat.csv", sep = "|", header = T)
 ```
 
-### Hot-Coding
+### 3.2.3 Hot-Coding
 For each board game, it can have multiple mechanics or categories. We split the mechanics and categories into separate columns with each boradgame having 0 or 1 for each of the mechanic and category.
 ```{r}
 # recode mechanic
@@ -209,67 +239,99 @@ df_recode_final <- cbind(df_mech_final, df_cat_final)
 write.table(df_recode_final, 'df_recode_final_1127', sep = "|")
 ```
 
+***
 
-# Exploratory Data Analysis
+# Section 4. Exploratory Data Analysis
 ```{r}
 game <- read.csv("df_recode_final_1127", sep = "|")
 ```
-## Summary Plots
 
-### 1 The distribution of average rating and geek rating across years
+## 4.1 Summary Plots
+### 4.1.1 Mean Geek Rating and Mean Average Rating by Category/Theme of Games
 
+__Figure 1.1: Avg rating vs geek rating across game ranks by categories__
 ```{r}
+#loading game without separation of mech and cate into indicator variables 
+game1 <- read.csv("bgg_final_clean_dat.csv", sep = "|", header = T)
 
-game %>% group_by(year) %>%
-  filter(year > 1980 ) %>%
-  summarise(avg_mean = mean(avg_rating), geek_mean = mean(geek_rating)) %>%
-  ggplot()+
-  geom_point(aes(year, avg_mean, col = 'avg_mean'))+
-  geom_line(aes(year, avg_mean, col = 'avg_mean')) +
-  geom_point(aes(year,  geek_mean, col = 'geek_mean'))+
-  geom_line(aes(year,  geek_mean, col = 'geek_mean')) +
-  scale_colour_manual(name="rating", values=c(avg_mean="red",geek_mean ="blue")) +
-  ylab("rating") +
-  xlab("year") +
-  ggtitle('The distribution of average rating and geek rating across years') +
-  theme_grey()
+# Functions
+split_into_multiple <- function(column, pattern = ", ", into_prefix){
+  cols <- str_split_fixed(column, pattern, n = Inf)
+  cols[which(cols == "")] <- NA
+  cols <- as_tibble(cols)
+  m <- dim(cols)[2]
+  names(cols) <- paste(into_prefix, 1:m, sep = "_")
+  return(cols)
+}
+
+#Splitting 
+game1 <- game1 %>% bind_cols(split_into_multiple(game1$category,',','category')) %>%
+  bind_cols(split_into_multiple(game1$mechanic,',','mechanic'))
+
+#Cleaning
+game1 <- game1 %>% select(-category, -mechanic, -designer, -image_url)
+
+#Tidying
+tidygame <- game1 %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
+  gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
+
+tidygame$mechanics <- trimws(tidygame$mechanics)
+tidygame$categories <- trimws(tidygame$categories)
+
+#Categories vs ratings
+tidygame %>% 
+ group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%  
+  ggplot() +
+  geom_point(aes(reorder(categories, avgrank), avggeek, color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(categories, avgrating, color = 'avg_rating'), size = 0.5) + 
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
+  theme(axis.text=element_text(size=8, angle = 60, hjust =1)) +
+  ylab("Rating") +
+  xlab("Rank") +
+  ggtitle("Ratings by Categories") 
 ```
 
 
-### 2 Changing difficulty of board games across years
 
+__Figure 1.2: Avg rating vs geek rating across game ranks by mechanics__
 ```{r}
-
-game %>% group_by(year) %>%
-  filter(year > 1980) %>% 
-  summarise(m = mean(weight, na.rm = T)) %>%
-  ggplot(aes(year, m))+
-  geom_point(color = 'blue')+
-  geom_line(color = 'blue') +
-  ylab("Difficulty") +
-  xlab("year") +
-  ggtitle('Changing difficulty of board games across years')+
-  theme_grey()
+#Mechanics vs ratings
+tidygame %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%
+  ggplot() +
+  geom_point(aes(reorder(mechanics, avgrank), avggeek, color = 'avg_geek'), size = 0.5) +
+  geom_point(aes(mechanics, avgrating, color = 'avg_rating'), size = 0.5) +
+  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) + #adds legend
+  theme(axis.text=element_text(size=9, angle = 60, hjust = 1)) +
+  ylab("Rating") +
+  xlab("Rank") +
+  ggtitle("Ratings by Mechanics") 
 ```
 
-### 3 The distribution of mean rank of board games across years
+The plots above show that the geek ratings are lower than average ratings across all categories or mechanics in general.  
+
+### 4.1.2 Trends and Ranking across Age Groups
+__Figure 2: Average Rating vs. Age__
 
 ```{r}
-game %>% group_by(year) %>%
-  filter(year > 1980) %>%
-  summarise(m = mean(rank)) %>%
-  ggplot(aes(year, m))+
-  geom_point(color = 'blue')+
-  geom_line(color = 'blue') +
-  ylab("Mean Rank") +
-  xlab("year") +
-  ggtitle('the distribution of mean rank of board games across years')+
-  theme_grey()
+df_recode_final <- read.csv('df_recode_final_1127', sep = "|")
+df_age <- df_recode_final %>% 
+  filter(age <= 21 & age > 0)
+df_age$age <- as.factor(df_age$age)
+df_age %>%
+  ggplot() +
+  geom_boxplot(aes(x = age, y = avg_rating, col = age)) +
+  theme(legend.position="none") +
+  ggtitle("Game Rating by Age") +
+  ylab("Average Rating") +
+  xlab("Age")
 ```
 
+We looked at average ratings across different minimum age groups. We found that board games tend to be rated lower for those catering to younger kids, and games with minimum recommended ages of 16-17 are the highest rated. This is probably because boardgamegeek.com users are generally at least teenagers so they prefer more challenging games appropriate to their age.  
 
-##  4 Plots and ranking among 3 age groups
-### 4.1 Generate agecat according IQR
+### 4.1.3 Plots and ranking among 3 Age Groups
+__Generate agecat according to IQR__  
+
+Then, we reported the top 10 ranked games for each age group and listed out their average ratings and geek ratings. The age groups were divided by interquartile ranges of 0-8, 9-12, and 13-21. We can clearly see that board games favored by each age group are different, and that games favored by average population and geeks are different in all 3 age groups.
 
 ```{r}
 Q1 <- quantile(game$age, 0.25) 
@@ -277,8 +339,7 @@ Q3 <- quantile(game$age, 0.75)
 game <- game %>% mutate(agecat = ifelse (age %in% range(0,Q1), 1, ifelse(age %in% range(Q1, Q3), 2, 3)))
 ```
 
-### 4.2 The top 10 rated (based on avg_rating) for each age group, game_id
-
+Get the top 10 rated (based on avg_rating) for each age group, game_id
 ```{r}
 # agecat == 1 when age %in% range(0,Q1)
 game %>% 
@@ -300,8 +361,7 @@ game %>%
   head(10) %>% kable
 ```
 
-### 4.3 The top 10 rated (based on avg_geek rating) for each age group, game_id
-
+Get the top 10 rated (based on avg_geek rating) for each age group, game_id.
 ```{r}
 # agecat == 1 when age %in% range(0,Q1)
 game %>% 
@@ -323,8 +383,7 @@ game %>%
   head(10) %>% kable
 ```
 
-### 4.4 For each age group, get top 100 ranked games, and then find the top 10 rated (by freq)  mechanicsfor each age group.
-
+For each age group, get top 100 ranked games, and then find the top 10 rated (by freq) mechanics for each age group.
 ```{r}
 # agecat == 1 when age %in% range(0,Q1)
 top100_1 <- game %>% 
@@ -352,11 +411,10 @@ mechanic <- top100_3[,27:76]
 m3 <- mechanic %>% colSums() %>% sort(decreasing = T) %>% head(10)  
 ```
 
-### Plot for 3 age groups
-### 4.5 Top 10 Ranked Game Mechanics for each Age Group
+We plotted the top 10 ranked game mechanics for each age group. We realized that the three age groups have similar sets of preferred board game categories, as well as mechanics.  
 
+__Figure 3.1: Top 10 Ranked Game Mechanics for each Age Group__
 ```{r}
-library(RColorBrewer)
 m11 <- data.frame(names=names(m1), m1)
 m22 <- data.frame(names=names(m2), m2)
 m33 <- data.frame(names=names(m3), m3)
@@ -391,7 +449,7 @@ grid.newpage()
 grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2),  ggplotGrob(p3),size = "last"))
 ```
 
-### 4.6 Top 10 Ranked Game Categories for each Age Group
+__Figure 3.2: Top 10 Ranked Game Categories for each Age Group__
 
 ```{r}
 
@@ -436,9 +494,10 @@ grid.newpage()
 grid.draw(rbind(ggplotGrob(pc1), ggplotGrob(pc2),  ggplotGrob(pc3),size = "last"))
 ```
 
+### 4.1.4 Trends and Ranking across Player Groups
+Firstly, we reported the top 10 ranked games for each player group a nd listed out their average ratings and geek ratings. Single-player, multiplayer, and party games are defined as those with 1 player, 2-4 players, and 4+ players respectively. We found that a large difference exist between the top-ranked games based on geek ratings or average ratings.  
 
-## 5 Plots and ranking among 3 single_player, multi_player, party_player groups
-### 5.1 Top 10 rated (based on avg_rating), game_id
+__Top 10 rated (based on avg_rating), game_id__
 
 ```{r}
 #single_player
@@ -463,7 +522,7 @@ game %>%
   head(10) %>% kable
 ```
 
-### 5.2 The top 10 rated (based on avg_geek rating) for each player group, game_id
+__Top 10 rated (based on avg_geek rating) for each player group, game_id__
 
 ```{r}
 #single_player
@@ -488,7 +547,9 @@ game %>%
   head(10) %>% kable
 ```
 
-### 5.3 Plot the top 10 rated (avg_geek) for each player group, mechanic
+Then we plotted the top 10 ranked game mechanics for each player group. We realized that the three age groups have similar sets of preferred board game categories, as well as mechanics.  
+
+__Figure 4.1: Plot the top 10 rated (avg_geek) for each player group, mechanic__
 
 ```{r}
 #single-player 
@@ -556,7 +617,7 @@ grid.newpage()
 grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2),  ggplotGrob(p3),size = "last"))
 ```
 
-### 5.4 Plot the top 10 rated (avg_geek) for each player group, categories
+__Figure 4.2: Plot the top 10 rated (avg_geek) for each player group, categories__
 
 ```{r}
 c1 <- top100_1[,78:160] %>% colSums() %>% sort(decreasing = T) %>% head(10)  
@@ -600,66 +661,32 @@ grid.newpage()
 grid.draw(rbind(ggplotGrob(pc1), ggplotGrob(pc2),  ggplotGrob(pc3),size = "last"))
 ```
 
-# avg rating vs geek rating across game ranks by categories
+### 4.1.5 Explore the Optimal Game Difficulty
+__Figure 5: Game Difficulty and Rating__
+
 ```{r}
-#loading game without separation of mech and cate into indicator variables 
-game1 <- read.csv("bgg_final_clean_dat.csv", sep = "|", header = T)
-
-library(purrr)
-library(stringr)
-# Functions
-split_into_multiple <- function(column, pattern = ", ", into_prefix){
-  cols <- str_split_fixed(column, pattern, n = Inf)
-  cols[which(cols == "")] <- NA
-  cols <- as_tibble(cols)
-  m <- dim(cols)[2]
-  names(cols) <- paste(into_prefix, 1:m, sep = "_")
-  return(cols)
-}
-
-#Splitting 
-game1 <- game1 %>% bind_cols(split_into_multiple(game1$category,',','category')) %>%
-  bind_cols(split_into_multiple(game1$mechanic,',','mechanic'))
-
-#Cleaning
-game1 <- game1 %>% select(-category, -mechanic, -designer, -image_url)
-
-#Tidying
-tidygame <- game1 %>% gather(key, categories, category_1:category_11, na.rm = TRUE) %>% select(-key) %>%
-  gather(key, mechanics, mechanic_1:mechanic_18, na.rm = TRUE) %>% select(-key)
-
-tidygame$mechanics <- trimws(tidygame$mechanics)
-tidygame$categories <- trimws(tidygame$categories)
-
-#Categories vs ratings
-tidygame %>% 
- group_by(categories) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%  
+# average rating and difficulty
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2")
+df_recode_diff <- df_recode_final
+df_recode_diff$min_time_category <- df_recode_final$cate_mintime
+df_recode_diff %>%
   ggplot() +
-  geom_point(aes(reorder(categories, avgrank), avggeek, color = 'avg_geek'), size = 0.5) +
-  geom_point(aes(categories, avgrating, color = 'avg_rating'), size = 0.5) + 
-  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) +
-  theme(axis.text=element_text(size=8, angle = 60, hjust =1)) +
-  ylab("Rating") +
-  xlab("Rank") +
-  ggtitle("Ratings by Categories") 
+  geom_point(aes(x = weight, y = avg_rating, col = factor(min_time_category))) +
+  xlab("Game Difficulty Level") +
+  ylab("Average Rating") +
+  ggtitle("Relationship of Game Difficulty and Rating") +
+  scale_colour_manual("", 
+                      breaks = c("card_game", "wargame", "fantasy", "economic", "fighting", "science_fiction"),
+                      values = cbPalette[1:6])
 ```
+We noticed that game rating increases as the difficulty level goes up, and that more difficult games need more time to play as expected.  
 
-#avg rating vs geek rating across game ranks by mechanics
-```{r}
-#Mechanics vs ratings
-tidygame %>% group_by(mechanics) %>% summarize(avgrating = mean(avg_rating), avggeek = mean(geek_rating), avgrank = mean(rank)) %>%
-  ggplot() +
-  geom_point(aes(reorder(mechanics, avgrank), avggeek, color = 'avg_geek'), size = 0.5) +
-  geom_point(aes(mechanics, avgrating, color = 'avg_rating'), size = 0.5) +
-  scale_colour_manual(name="Rating", values=c(avg_geek="red", avg_rating="blue")) + #adds legend
-  theme(axis.text=element_text(size=9, angle = 60, hjust = 1)) +
-  ylab("Rating") +
-  xlab("Rank") +
-  ggtitle("Ratings by Mechanics") 
-```
+### 4.1.6 Explore Beta Coefficients from Linear Regression Model
+Firstly, we calculated the beta Coefficients of Game Categories (linear model with categories variable only) and visualized them. From preliminary univariate linear regression of categories on average rating, error bars represent the 95% confidence interval of each coefficient estimate. We found that several game categories, such as Environmental, Medical, Farming, Civilization, are positively associated with average rating.  
 
+Secondly, we calculated the beta Coefficients of Game Mechanics (linear model with mechanics variable only) and visualized them. From a similar univariate linear regression of mechanics on average rating, such as Worker Placement, Grid Movement, Variable Phase Order, Role Playing, we see that several types of mechanics are positively associated with average rating.
 
-# Beta Coefficients of Game Categories  (linear model with categories variable only)
+__Figure 6.1: Beta Coefficients of Game Categories  (linear model with categories variable only)__
 ```{r}
 
 model1 <- lm(geek_rating ~ categories,data = tidygame)
@@ -688,7 +715,7 @@ ggplot(coeff_cat_error[-1,], aes( x=reorder(covariates, coef)))+
 
 ```
 
-# Beta Coefficients of Game Mechanics (linear model with mechanics variable only)
+** Figure 6.2: Beta Coefficients of Game Mechanics (linear model with mechanics variable only) **
 ```{r}
 model2 <- lm(geek_rating ~ mechanics, data = tidygame)
 coeff <- as.data.frame(model2$coefficients)
@@ -713,28 +740,71 @@ ggplot(coeff_mech_error[-1,], aes( x=reorder(covariates, coef)))+
   theme(axis.text=element_text(size=8))
 ```
 
-# Change in Rating Over the Years
+## 4.2 Board Game Evolution  
+### 4.2.1 General Trends
+Firstly, we plotted the distribution of average rating and geek rating across years, we found that the average geek rating is always lower than the average rating, and that the two average ratings did not change much before 2015, but diverged after 2015, and that diverge may be due to low number of players in most recent board games.  
 
+Secondly, we plotted the distribution of game difficulty over the years. We noticed that the trend of difficulty in board games decreased from 1980 to 2017, and that the level of difficulty fluctuates across years, and that the most difficult board game in year 2018 is likely to be an outlier.  
 
+Then, we visualized the change in game popularity over the years and noticed that generally own more board games over the years, however there was a drop after year 2014.
 
+__Figure 1.1: The distribution of average rating and geek rating across years__
 
+```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980 ) %>%
+  summarise(avg_mean = mean(avg_rating), geek_mean = mean(geek_rating)) %>%
+  ggplot()+
+  geom_point(aes(year, avg_mean, col = 'avg_mean'))+
+  geom_line(aes(year, avg_mean, col = 'avg_mean')) +
+  geom_point(aes(year,  geek_mean, col = 'geek_mean'))+
+  geom_line(aes(year,  geek_mean, col = 'geek_mean')) +
+  scale_colour_manual(name="rating", values=c(avg_mean="red",geek_mean ="blue")) +
+  ylab("rating") +
+  xlab("year") +
+  ggtitle('The distribution of average rating and geek rating across years') +
+  theme_grey()
+```
 
+__Figure 1.2: Changing difficulty of board games across years__
 
-# Change in Game Difficulty Over the Years
+```{r}
 
+game %>% group_by(year) %>%
+  filter(year > 1980) %>% 
+  summarise(m = mean(weight, na.rm = T)) %>%
+  ggplot(aes(year, m))+
+  geom_point(color = 'blue')+
+  geom_line(color = 'blue') +
+  ylab("Difficulty") +
+  xlab("year") +
+  ggtitle('Changing difficulty of board games across years')+
+  theme_grey()
+```
 
+__Figure 1.3: The Distribution of Mean Rank of Board Games across Years__
 
+```{r}
+game %>% group_by(year) %>%
+  filter(year > 1980) %>%
+  summarise(m = mean(rank)) %>%
+  ggplot(aes(year, m))+
+  geom_point(color = 'blue')+
+  geom_line(color = 'blue') +
+  ylab("Mean Rank") +
+  xlab("year") +
+  ggtitle('the distribution of mean rank of board games across years')+
+  theme_grey()
+```
 
+### 4.2.2 Change in Game Mechanics and Themes Over the Years
+Finally, we plotted the change in game mechanics and themes over the years 1980-2018.  
 
+For the mechanics, we found that hand management became one of the dominating mechanics in the past few decades, and dice rolling is a long-standing popular mechanic throughout the time. 
 
-# Change in Game Popularity Over the Years 
+For the themes(categories), we noticed that war games were really popular in the 80's, but they became much less popular now; card games gradually gained a lot of popularity; a lot of fantasy games emerged in the last 10 years.
 
-
-
-
-
-
-# Change in Game Mechanics and Themes Over the Years
+__Figure 2.1: Change in game mechanics__
 ```{r}
 # Change in game mechanics
 df_new1 <- game %>% filter(year >= 1980)
@@ -788,7 +858,11 @@ ggplot() +
   ylab("Percentage of games") +
   ggtitle("Evolution of Game Mechanics 1980 - 2018") +
   theme(legend.position="bottom")
+```
 
+
+__Figure 2.2: Change in Game Categories__
+```{r}
 # change in game categories
 card_game <- df_new1 %>%
     group_by(year_group) %>%
@@ -840,37 +914,38 @@ ggplot() +
   theme(legend.position="bottom")
 ```
 
-# Predictions with Machine Learning
-## Objective
+***
+
+# Section 5. Predictions with Machine Learning
+## 5.1 Objective
 We want to predict the success of a board game which is measured by its **average rating** on boardgamegeek.com.
 
-## Methods
+## 5.2 Methods
 We tried four different machine learning methods, including linear regression, kth nearest neighbors, random forest, and support vector machine.
 
-###Building train and test set
+__Building train and test set__
 ```{r}
-library(caret)
 set.seed(1)
-game <- read.csv("df_recode_final_1127",  header =T, sep = "|") 
+game <- read.csv("df_recode_final_1127",  header =T, sep = "|")
 
 # drop the irrelevant columns like game ID, names, designer
 # drop na
 g1 <- game[, -c(2:4, 14, 16, 18:19, 77)] #4750  152
 g <- drop_na(g1) # 4666  152
-
+#g <- na.omit(g1)
 # Spliting data as training and test set. Using createDataPartition() function from caret
 inTrain <- createDataPartition(y = g$avg_rating,
                                p=0.8)$Resample
-train_set <- slice(g1, inTrain) 
+train_set <- slice(g, inTrain)
 test_set <- slice(g, -inTrain)
 
 control <- trainControl(method = 'cv', number = 20)
 ```
 
 
-### Linear Regression
+### 5.2.1 Linear Regression
 ```{r}
-### Finding the best covariates to test with ML lm method 
+# Finding the best covariates to test with ML lm method
 model <- train(avg_rating ~ .,
              data = train_set,
              method = "lm",
@@ -887,14 +962,14 @@ lm.null <- lm(avg_rating ~ 1, data = train_set)
 lm.full <- lm(avg_rating ~ year + weight + single_player + multi_player + hand_management + point_to_point_movement + set_collection + variable_player_powers + card_drafting + area_control_._area_influence + campaign_._battle_card_driven + dice_rolling + simultaneous_action_selection + route.network_building + variable_phase_order + grid_movement + storytelling + worker_placement + deck_._pool_building + player_elimination + press_your_luck + hex.and.counter + stock_holding + betting.wagering + line_drawing + rock.paper.scissors + environmental + card_game + economic + wargame + fighting + city_building + farming + murder.mystery, data = train_set)
 mod1 <- step(lm.null, direction = "both", scope = list(lower = lm.null, upper = lm.full))
 
-#finalized linear model 
-mod1 <- lm(avg_rating ~ weight + year + wargame + single_player + 
-    deck_._pool_building + storytelling + grid_movement + hex.and.counter + 
-    campaign_._battle_card_driven + multi_player + city_building + 
-    rock.paper.scissors + simultaneous_action_selection + area_control_._area_influence + 
-    line_drawing + betting.wagering + route.network_building + 
-    press_your_luck + murder.mystery + fighting + card_drafting + 
-    stock_holding + variable_player_powers + card_game + point_to_point_movement, 
+#finalized linear model
+mod1 <- lm(avg_rating ~ weight + year + wargame + single_player +
+    deck_._pool_building + storytelling + grid_movement + hex.and.counter +
+    campaign_._battle_card_driven + multi_player + city_building +
+    rock.paper.scissors + simultaneous_action_selection + area_control_._area_influence +
+    line_drawing + betting.wagering + route.network_building +
+    press_your_luck + murder.mystery + fighting + card_drafting +
+    stock_holding + variable_player_powers + card_game + point_to_point_movement,
     data = train_set)
 summary(mod1)
 
@@ -904,14 +979,16 @@ cor(predictions, test_set$avg_rating)
 
 #graph of predictions vs actual rating
 data.frame(test_set$avg_rating, predictions) %>% ggplot(aes(test_set$avg_rating, predictions)) +
-  geom_point(color = "pink") + 
+  geom_point(color = "pink") +
   stat_ellipse(color = "pink") +
   xlab("Actual Average Rating") +
   ylab("Predicted Average Rating") +
   ggtitle("Actual vs Predicted Average Rating")
 
 #graph of linear model coefficients by magnitude
-mod_coef <- data.frame(mod1$coeff) %>% mutate(variable = rownames(mod_coef))
+mod_coef <- data.frame(mod1$coeff)
+mod_coef <- mod_coef %>%
+  mutate(variable = rownames(mod_coef))
 
 ggplot(mod_coef[-1,], aes( x=reorder(variable, mod1.coeff), y=mod1.coeff, fill=mod1.coeff))+
   geom_bar(stat="identity") +
@@ -921,8 +998,8 @@ ggplot(mod_coef[-1,], aes( x=reorder(variable, mod1.coeff), y=mod1.coeff, fill=m
   theme_light() +
   guides(fill=guide_legend(title="Coefficient values"))
 ```
-
-### K-Nearest Neighbors
+ 
+### 5.2.2 K-Nearest Neighbors
 ```{r}
 knnFit <- train(avg_rating ~.,
              data = train_set,
@@ -954,38 +1031,40 @@ data %>% ggplot(aes(avg_rating, knnPredict)) +
   xlab('Actual average_rating')
 ```
 
-
-### Random Forest
+### 5.2.3 Random Forest
 ```{r}
 # omit na
-df1_na_omit <- na.omit(game)
+#df1_na_omit <- na.omit(game)
 # set seed
-set.seed(1)
+#set.seed(1)
 
 # create training and testing data
-inTrain <- createDataPartition(y = df1_na_omit$geek_rating,
-                               p=0.8)$Resample
-train_set <- slice(df1_na_omit, inTrain) 
-test_set <- slice(df1_na_omit, -inTrain)
+#inTrain <- createDataPartition(y = df1_na_omit$geek_rating,
+#                               p=0.8)$Resample
+#train_set <- slice(df1_na_omit, inTrain)
+#test_set <- slice(df1_na_omit, -inTrain)
 
 # select needed columns
-train_set_select <- train_set[, c(5:10, 11, 15, 20:110)]
+train_set_select <- train_set[, c(2:8, 11, 13:152)]
 
 # run randomForest with all features
-fit <- randomForest(avg_rating ~  ., 
+#fit <- randomForest(avg_rating ~  .,
+#      data = train_set_select,
+#      ntree = 500)
+fit <- randomForest(avg_rating ~  .,
       data = train_set_select,
       ntree = 500)
 
 # plot feature importance
 impt <- as.data.frame(importance(fit))
-impt$variable <- names(train_set_select[, -7])
+impt$variable <- names(train_set_select[, -8])
 impt <- transform(impt, variable = reorder(variable, IncNodePurity))
-impt %>% 
+impt %>%
   mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
   ggplot() +
-  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') + 
+  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') +
   coord_flip() +
-  ylab("Feature Importance") + 
+  ylab("Feature Importance") +
   xlab("Feature") +
   ggtitle("Board Game Features Ranked by Importance")
 ```
@@ -993,20 +1072,20 @@ impt %>%
 Top 20 Most Important Features
 ```{r}
 # select top 20 most important features
-impt_feature <- impt %>% 
-  mutate(sort(IncNodePurity, decreasing = TRUE)) %>% 
+impt_feature <- impt %>%
+  mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
   head(20) %>%
   select(variable)
 impt_feature <- as.character(as.vector(impt_feature$variable))
 
 impt_feature_df <- impt %>%
   filter(variable %in% impt_feature)
-impt_feature_df %>% 
+impt_feature_df %>%
   mutate(sort(IncNodePurity, decreasing = TRUE)) %>%
   ggplot() +
-  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') + 
+  geom_bar(aes(y = IncNodePurity, x = variable), stat = 'identity') +
   coord_flip() +
-  ylab("Feature Importance") + 
+  ylab("Feature Importance") +
   xlab("Feature") +
   ggtitle("Board Game Features Ranked by Importance")
 ```
@@ -1015,12 +1094,12 @@ impt_feature_df %>%
 # fit the random forest model
 # change number of variables randomly sampled as candidates at each split
 RMSE_mtry <- c()
-for (m in 1:50) {
-  fit <- randomForest(avg_rating ~  ., 
+for (m in 1:30) {
+  fit <- randomForest(avg_rating ~  .,
       data = train_set_select,
-      ntree = 100, 
+      ntree = 100,
       mtry = m)
-  
+
   # make predictions on test set
   predictions <- predict(fit, test_set)
 
@@ -1030,23 +1109,25 @@ for (m in 1:50) {
   RMSE_mtry <- c(RMSE_mtry, RMSE)
 }
 
-which(RMSE_mtry == min(RMSE_mtry))
+# get minimum RMSE
+which.min(RMSE_mtry)
 
+# plot RMSE with mtry
 ggplot() +
-  geom_line(aes(x = 1:50, y = RMSE_mtry)) + 
-  geom_point(aes(x = 1:50, y = RMSE_mtry)) +
+  geom_line(aes(x = 1:30, y = RMSE_mtry)) +
+  geom_point(aes(x = 1:30, y = RMSE_mtry)) +
   ggtitle("Choose the Best Number of Variables to Include at Each Split") +
   xlab("mtry") +
   ylab("RMSE")
 
 # change number of trees to grow
 RMSE_ntree <- c()
-for (n in 1:15) {
-  fit <- randomForest(avg_rating ~  ., 
+for (n in 1:10) {
+  fit <- randomForest(avg_rating ~  .,
       data = train_set_select,
-      ntree = n * 50, 
-      mtry = 30)
-  
+      ntree = n * 50,
+      mtry = which(RMSE_mtry == min(RMSE_mtry)))
+
   # make predictions on test set
   predictions <- predict(fit, test_set)
 
@@ -1057,23 +1138,23 @@ for (n in 1:15) {
 }
 
 ggplot() +
-  geom_line(aes(x = seq(50, 750, 50), y = RMSE_ntree)) + 
-  geom_point(aes(x = seq(50, 750, 50), y = RMSE_ntree)) +
+  geom_line(aes(x = seq(50, 500, 50), y = RMSE_ntree)) +
+  geom_point(aes(x = seq(50, 500, 50), y = RMSE_ntree)) +
   ggtitle("Choose the Best Number of Trees to Grow") +
   xlab("ntree") +
   ylab("RMSE")
 
-which(RMSE_ntree == min(RMSE_ntree))
+which.min(RMSE_ntree)
 min(RMSE_ntree)
 ```
 
 Fit a model using our best mtry and ntree.
 ```{r}
 # best model
-fit <- randomForest(avg_rating ~  ., 
+fit <- randomForest(avg_rating ~  .,
       data = train_set_select,
-      ntree = min(RMSE_ntree), 
-      mtry = min(RMSE_mtry))
+      ntree = which.min(RMSE_ntree),
+      mtry =  which.min(RMSE_mtry))
 
 # make predictions
 predictions <- predict(fit, test_set)
@@ -1088,22 +1169,22 @@ R_2
 
 # plot
 ggplot() +
-  geom_point(aes(x = test_set$avg_rating, y = predictions), col = "pink") + 
+  geom_point(aes(x = test_set$avg_rating, y = predictions), col = "pink") +
   ggtitle("Predictions vs True Average Ratings") +
   xlab("True Average Rating") +
   ylab("Predicted Average Rating")
 ```
 
-### Support Vector Machines
+### 5.2.4 Support Vector Machines
 ```{r}
 ### support vector machine
-g1 <- game[, -c(2:4, 14, 16, 18:19, 77)] #4750  152
-g <- drop_na(g1) # 4666  152
+#g1 <- game[, -c(2:4, 14, 16, 18:19, 77)] #4750  152
+#g <- drop_na(g1) # 4666  152
 
-# Spliting data into training and test set. 
-inTrain <- createDataPartition(y = g$avg_rating, p=0.8)$Resample
-train_set <- slice(g1, inTrain) 
-test_set <- slice(g, -inTrain)
+# Spliting data into training and test set.
+#inTrain <- createDataPartition(y = g$avg_rating, p=0.8)$Resample
+#train_set <- slice(g1, inTrain)
+#test_set <- slice(g, -inTrain)
 
 #control <- trainControl(method = 'cv', number = 20)
 svmFit <- train(avg_rating ~.,
@@ -1114,7 +1195,7 @@ svmFit <- train(avg_rating ~.,
              preProcess = c("center", "scale"),
              tuneLength = 10)
 svmFit
-svmPredict <- predict(svmFit,newdata = test_set) 
+svmPredict <- predict(svmFit,newdata = test_set)
 
 #plot actual vs prediction
 data <- data.frame(cbind(svmPredict, test_set$avg_rating))
@@ -1127,7 +1208,9 @@ data %>% ggplot(aes(avg_rating, svmPredict)) +
   ylab('SVM_prediction')
 ```
 
-# Board Game Recommender
+***
+
+# Section 6. Board Game Recommender
 We also built a simple board game recommender where a user can input their favorite board game and we will make recommendations of several board games that we think they might like, based on how similar the games are to their favorite game.
 ```{r}
 # omit na
@@ -1173,4 +1256,12 @@ get_most_simi <- function(game_name, df) {
 get_most_simi("Kingdom Builder", df_rec)
 ```
 
-# Final Analysis
+***
+
+
+# Section 7. Final Analysis
+The exploratory data analysis and machine learning were used to analyze the board game dataset. From the EDA, we explored the relationships between different characteristics of a board game to the average game rating, and we built models to predict the rating based on possible predictors. Here are some interesting findings. The average rating is different from the geek rating by both categories and mechanics across years. We found more similarity in preferred mechanics than in preferred categories for each age group and each player group. The top rated categories were card game, economics, flighting and fantasy. Card game and fantasy theme were gradually taking over the market, but the war game lost popularity over the years. The top rated mechanics were variable player powers, dice rolling, hand management, and card drafting. Hand management became more popular over the years. Also, the longer the players spent in a game, the more likely they would highly rate this game. 
+
+The four machine learning methods were used to formally assess the association between characteristics of the board games to the average rating. The linear regression based on the stepwise selection by AIC was applied. A final model had 24 significant predictors and RMSE = 0.42. By the regression model, game difficulty most strongly influenced the average rating of a game. Of all significant categories, storytelling was most strongly associated with higher average ratings. Of all significant mechanics, war games were most strongly associated with higher average ratings. Games categorized as rock-paper-scissors games were the most strongly associated with lower average ratings. The kth nearest neighbor using 20 fold cross validation was applied. The optimal k is 23 with RMSE = 0.46. The random forest with ntree = 550 and mtry = 30 was applied to select the top important features. Based on the random forest analysis, game difficulty, year, maximum and minimum time needed to play, age requirement, and player groups were the most important features. The support vector machine using 20 fold cross validation was applied. It resulted the lowest RMSE = 0.35, which means our best model were on average 0.35 points off from the true rating. There were several board game categories and mechanics that tend to do better than others. To maximize the chances of a board game becoming popular, a game designer could attempt making a game in these top categories or using some popular mechanics. 
+
+Based on our prediction, a board game recommender was built. Six relevant board games were recommended for a board game based on Euclidean distance. 
